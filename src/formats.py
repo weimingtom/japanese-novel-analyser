@@ -11,12 +11,19 @@ import re
 from logger import logger
 
 """
-This formatter takes texts in plain format and returns exactly the
-same text.
+This is the base formatter. In itself it just takes texts in plain format
+and returns exactly the same text.
 """
-class PlainFormat:
-  def trim(self, string):
-    return string
+class Format(object):
+  def __init__(self):
+    self.linecount = 0
+
+  def new_file(self):
+    self.linecount = 0
+
+  def trim(self, line):
+    self.linecount = self.linecount + 1
+    return line
 
 """
 This formatter takes texts in the Aozora Bunko format and
@@ -24,8 +31,9 @@ strips and/or converts special Aozora constructs to gain plain text.
 Gaiji constructs are replaced with UTF-8 equivalents and
 other formatting constructs are deleted.
 """
-class AozoraFormat:
+class AozoraFormat(Format):
   def __init__(self, basedir):
+    super(AozoraFormat, self).__init__()
     # load gaiji codes
     self.gaiji_codes = {}
     gaiji_file = os.path.join(basedir, 'data/gaiji_codes')
@@ -42,13 +50,19 @@ class AozoraFormat:
             utf_char = unichr(int(match.group('UtfCode'), 16))
             self.gaiji_codes[gaiji_code] = utf_char
 
-  def trim(self, string):
-    string = unicode(string)
+  def trim(self, line):
+    Format.trim(self, line)
     # replace gaiji
-    repl = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, string, flags=re.UNICODE)
-    # replace other aozora constructs
-    # replace furigana
-    return repl
+    line = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, line)
+    # handle the alteration mark
+    line = re.sub(ur'※［＃歌記号］', u'〽', line);
+    # remove other Aozora constructs
+    line = re.sub(ur'［＃.*?］', u'', line);
+    # remove HTML TODO: really neccessary?
+    # remove furigana
+    line = re.sub(ur'《.*?》', u'', line);
+    line = re.sub(ur'｜', u'', line);
+    return line
 
   def replace_gaiji(self, gaiji_match):
     gaiji_code = gaiji_match.group('GaijiCode')
@@ -57,4 +71,16 @@ class AozoraFormat:
     except KeyError:
       logger.err('found gaiji with no equivalent: %s' % gaiji_match.group(0))
       return ''
+
+"""
+This formatter takes texts with HTML tags and removes them.
+"""
+class HtmlFormat(Format):
+  def __init__(self, basedir):
+    super(HtmlFormat, self).__init__()
+
+  def trim(self, line):
+    Format.trim(self, line)
+    line = re.sub(ur'<.*?>', u'', line);
+    return line
 

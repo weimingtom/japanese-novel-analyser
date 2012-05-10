@@ -12,7 +12,7 @@ Options:
   -h, --help          Display this help
   -e, --encoding=ENC  Set the encoding for the files to ENC
   -f, --format=FORMAT Set the format of the files;
-                      FORMAT is `aozora' or `plain`
+                      FORMAT is  'plain', 'aozora' or 'html`
 """
 
 import sys
@@ -45,7 +45,7 @@ def main():
       sys.exit(0)
     if o in ('-f', '--format'):
       formatter = a
-      if formatter not in ('plain', 'aozora'):
+      if formatter not in ('plain', 'aozora', 'html'):
         logger.err('format not supported: %s' % formatter)
         sys.exit(2)
     if o in ('-e', '--encoding'):
@@ -58,8 +58,10 @@ def main():
   # create formatter
   if(formatter == 'aozora'):
     formatter = formats.AozoraFormat(basedir)
+  elif(formatter == 'html'):
+    formatter = formats.HtmlFormat()
   else:
-    formatter = formats.PlainFormat()
+    formatter = formats.Format()
   # check mode
   if mode == 'analyse':
     # process files
@@ -73,6 +75,7 @@ def analyze(files, formatter, encoding):
   # process all files line by line
   for filename in files:
     logger.out('reading %s' % filename)
+    formatter.new_file()
     try:
       fp = codecs.open(filename, 'r', encoding)
     except IOError as e:
