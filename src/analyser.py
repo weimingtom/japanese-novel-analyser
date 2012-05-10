@@ -18,16 +18,21 @@ Options:
 import sys
 import getopt
 import codecs
+import os.path
+import MeCab
 
 import formats
 from logger import logger
 
 def main():
+  # get path of main program directory
+  basedir =  os.path.normpath(os.path.join(
+      os.path.split(sys.argv[0])[0], os.pardir))
   # parse command line options
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'hf:e:', ['help','format=','encoding='])
-  except getopt.error, msg:
-    logger.err(msg)
+  except getopt.error as opterr:
+    logger.err(opterr)
     logger.err('for help use --help')
     sys.exit(2)
   # process options
@@ -50,6 +55,11 @@ def main():
       except LookupError:
         logger.err('encoding not found: %s' % encoding)
         sys.exit(2)
+  # create formatter
+  if(formatter == 'aozora'):
+    formatter = formats.AozoraFormat(basedir)
+  else:
+    formatter = formats.PlainFormat()
   # check mode
   if mode == 'analyse':
     # process files
@@ -60,11 +70,6 @@ def main():
     logger.out('no mode given, exiting')
 
 def analyze(files, formatter, encoding):
-  # get formatter
-  if(formatter == 'aozora'):
-    formatter = formats.AozoraFormat()
-  else:
-    formatter = formats.PlainFormat()
   # process all files line by line
   for filename in files:
     logger.out('reading %s' % filename)
@@ -76,7 +81,8 @@ def analyze(files, formatter, encoding):
       with fp:
         for line in fp:
           sline = formatter.trim(line)
-          #sys.stdout.write(sline)
+          sys.stdout.write(sline)
+          #TODO: continue analysing with Mecab 
 
 if __name__ == '__main__':
   main()
