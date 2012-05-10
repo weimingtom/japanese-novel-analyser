@@ -13,15 +13,16 @@ Options:
   -e, --encoding=ENC  Set the encoding for the files to ENC
   -f, --format=FORMAT Set the format of the files;
                       FORMAT is  'plain', 'aozora' or 'html`
+  -o, --output=FILE   Output cleaned up input file to FILE
 """
 
 import sys
 import getopt
 import codecs
 import os.path
-import MeCab
 
 import formats
+import mecab
 from logger import logger
 
 def main():
@@ -30,15 +31,15 @@ def main():
       os.path.split(sys.argv[0])[0], os.pardir))
   # parse command line options
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:', ['help','format=','encoding='])
+    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:', ['help','format=','encoding=', 'output='])
   except getopt.error as opterr:
     logger.err(opterr)
     logger.err('for help use --help')
     sys.exit(2)
   # process options
-  mode = 'analyse'#TODO: make switchable
   formatter = 'aozora'
   encoding = 'utf-8'
+  output = None
   for o, a in opts:
     if o in ('-h', '--help'):
       logger.out(__doc__)
@@ -55,23 +56,29 @@ def main():
       except LookupError:
         logger.err('encoding not found: %s' % encoding)
         sys.exit(2)
-  # create formatter
+    if o in ('-o', '--output'):
+      try:
+        output = open(a, 'w')
+      except IOError as e:
+        logger.err('error opening %s: %s' % (a, e))
+  # create formatter and parser
   if(formatter == 'aozora'):
     formatter = formats.AozoraFormat(basedir)
   elif(formatter == 'html'):
     formatter = formats.HtmlFormat()
   else:
     formatter = formats.Format()
-  # check mode
-  if mode == 'analyse':
+  parser = mecab.PyMeCab()
+  try:
     # process files
-      logger.out('analyzing text files')
-      analyze(args, formatter, encoding)
-      logger.out('done analyzing')
-  else:
-    logger.out('no mode given, exiting')
+    logger.out('analyzing text files')
+    analyze(args, formatter, parser, encoding, output)
+    logger.out('done analyzing')
+  finally:
+    if output:
+      output.close()
 
-def analyze(files, formatter, encoding):
+def analyze(files, formatter, parser, encoding, output):
   # process all files line by line
   for filename in files:
     logger.out('reading %s' % filename)
@@ -83,9 +90,13 @@ def analyze(files, formatter, encoding):
     else:
       with fp:
         for line in fp:
-          sline = formatter.trim(line)
-          sys.stdout.write(sline)
-          #TODO: continue analysing with Mecab 
+          trimmed_line = formatter.trim(line)
+          mecab_data = parser.parse(trimmed_line)
+          if output:
+            output.write(trimmed_line.encode('utf-8'))
+          for word_data in mecab_data:
+            print('%s' % word_data)
+          #TODO: continue counting word frequencies 
 
 if __name__ == '__main__':
   main()

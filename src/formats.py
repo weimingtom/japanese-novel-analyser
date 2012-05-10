@@ -34,6 +34,7 @@ other formatting constructs are deleted.
 class AozoraFormat(Format):
   def __init__(self, basedir):
     super(AozoraFormat, self).__init__()
+    self.skip = False
     # load gaiji codes
     self.gaiji_codes = {}
     gaiji_file = os.path.join(basedir, 'data/gaiji_codes')
@@ -50,15 +51,33 @@ class AozoraFormat(Format):
             utf_char = unichr(int(match.group('UtfCode'), 16))
             self.gaiji_codes[gaiji_code] = utf_char
 
+  def new_file(self):
+    Format.new_file(self)
+    self.skip = False
+
   def trim(self, line):
     Format.trim(self, line)
+    # look for comment in first 30 lines
+    if re.match (ur'----------', line):
+      if self.skip:
+        self.skip = False
+        return ''
+      elif self.linecount <= 30:
+        self.skip = True
+    # look for final 底本
+    if re.match (ur'底本', line):
+      self.skip = True
+    # if in skip mode, ignore line
+    if self.skip:
+      return ''
     # replace gaiji
     line = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, line)
     # handle the alteration mark
     line = re.sub(ur'※［＃歌記号］', u'〽', line);
     # remove other Aozora constructs
     line = re.sub(ur'［＃.*?］', u'', line);
-    # remove HTML TODO: really neccessary?
+    # remove HTML
+    line = re.sub(ur'<.*?>', u'', line);
     # remove furigana
     line = re.sub(ur'《.*?》', u'', line);
     line = re.sub(ur'｜', u'', line);
@@ -81,6 +100,9 @@ class HtmlFormat(Format):
 
   def trim(self, line):
     Format.trim(self, line)
+    # remove tags
     line = re.sub(ur'<.*?>', u'', line);
+    # remove furigana
+    line = re.sub(ur'（.*?）', u'', line);
     return line
 
