@@ -45,7 +45,7 @@ class AozoraFormat(Format):
     else:
       with fp:
         for line in fp:
-          match = re.match(r'^(?P<GaijiCode>\d-\d{1,2}-\d{1,2})\t\\UTF{(?P<UtfCode>[0-9a-fA-F]+)}', line)
+          match = re.match(ur'^(?P<GaijiCode>\d-\d{1,2}-\d{1,2})\t\\UTF{(?P<UtfCode>[0-9a-fA-F]+)}', line)
           if match: # if no match, it is a CID code
             gaiji_code = match.group('GaijiCode')
             utf_char = unichr(int(match.group('UtfCode'), 16))
@@ -61,15 +61,15 @@ class AozoraFormat(Format):
     if re.match (ur'----------', line):
       if self.skip:
         self.skip = False
-        return ''
+        return u''
       elif self.linecount <= 30:
         self.skip = True
-    # look for final 底本
-    if re.match (ur'底本', line):
+    # look for final words
+    if re.match (ur'\s*底本', line) or re.match(ur'\s*このテキストは'):
       self.skip = True
     # if in skip mode, ignore line
     if self.skip:
-      return ''
+      return u''
     # replace gaiji
     line = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, line)
     # handle the alteration mark
