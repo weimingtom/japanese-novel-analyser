@@ -8,6 +8,7 @@ import sys
 import re
 import MeCab
 
+import config
 from logger import logger
 
 class MecabData():
@@ -43,9 +44,9 @@ class MecabData():
     return 0
 
 class PyMeCab():
-  def __init__(self, mecab_fields):
+  def __init__(self)
     self.tagger = MeCab.Tagger('')
-    self.fields = mecab_fields
+    self.fields = config.mecab_fields
 
   def parse(self, line):
     node = self.tagger.parseToNode(line.encode('utf-8'))

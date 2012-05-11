@@ -5,21 +5,22 @@ and performing queries on the data.
 
 import sqlite3
 
+import config
+from config import IGNORE
+from logger import logger
+
 """
 Open a existing database, or otherwise create a new
 in its place and provide access to it
 """
 class Database():
-  # string to use for accumulating functionality
-  IGNORE = 'IGNORE'
 
-  def __init__(self, filename, mecab_fields):
-    print('creating database')
+  def __init__(self, filename):
     self.filename = filename
-    self.fields = mecab_fields
+    self.fields = config.mecab_fields
 
   def __enter__(self):
-    print('connecting database')
+    logger.out('connecting to database')
     self.conn = sqlite3.connect(self.filename)
     self.c = self.conn.cursor()
     self.create_table()
@@ -62,7 +63,7 @@ class Database():
   - be set to *     : No filtering
   Note that word can not be set to group.
   """
-  def select(self, word, pos):
+  def select(self, word, pos, amount):
     vals = []
     npresent = 0
     sql = 'SELECT sum(freq)'
@@ -71,34 +72,39 @@ class Database():
       npresent = npresent + 1
       sql = sql + ', word'
     for i in range(self.fields):
-      if poss[i] != IGNORE:
+      if pos[i] != IGNORE:
         npresent = npresent + 1
-        sql = sql + 'pos' + str(i) + ' '
+        sql = sql + ', pos' + str(i)
     # add equality criteria
     sql = sql + '\nFROM freqs\nWHERE '
     if word != IGNORE and word != '*':
       sql = sql + 'word=? AND '
       vals.append(word)
     for i in range(self.fields):
-      if poss[i] != IGNORE and poss[i] != '*':
+      if pos[i] != IGNORE and pos[i] != '*':
         sql = sql + 'pos' + str(i) + '=? AND '
         vals.append(pos[i])
+    sql = sql.rstrip('AND ')
+    if(len(vals) == 0):
+      sql = sql.rstrip('\nWHERE')
     # add grouping options
     if npresent > 0:
       sql = sql + '\nGROUP BY '
       if word != IGNORE:
-        sql = sql + 'word'
-        npresent = npresent + 1
-        sql = sql + ', word'
+        sql = sql + 'word, '
       for i in range(self.fields):
-        if poss[i] != IGNORE:
-          sql = sql + 'pos' + str(i) + ' '
+        if pos[i] != IGNORE:
+          sql = sql + 'pos' + str(i) + ', '
+      sql = sql.rstrip(', ')
     # add ordering
-    sql + '\nORDER BY sum(freq)'
-    logger.out('executing query:\n%s' % sql)
+    sql = sql + '\nORDER BY sum(freq) DESC'
+    logger.out('executing query:\n%s\nwith values %s' % (sql, vals))
+    self.c.execute(sql, vals)
+    return self.c.fetchmany(amount)
   
   def __exit__(self, typ, value, traceback):
     self.c.close()
     self.conn.commit()
     self.conn.close()
+    logger.out('disconnected from database')
 
