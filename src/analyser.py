@@ -20,10 +20,12 @@ import sys
 import getopt
 import codecs
 import os.path
+import sqlite3
 
 import formats
 import mecab
 import freq
+import database
 from logger import logger
 
 def main():
@@ -41,6 +43,8 @@ def main():
   formatter = 'aozora'
   encoding = 'utf-8'
   output = None
+  tablename = 'freqs'
+  mecab_fields = 6 # mecab pos fields, should not change
   for o, a in opts:
     if o in ('-h', '--help'):
       logger.out(__doc__)
@@ -69,17 +73,23 @@ def main():
     formatter = formats.HtmlFormat()
   else:
     formatter = formats.Format()
-  parser = mecab.PyMeCab()
+  parser = mecab.PyMeCab(mecab_fields)
   try:
-    # process files
-    logger.out('analyzing text files')
-    analyze(args, formatter, parser, encoding, output)
-    logger.out('done analyzing')
+    dbfile = os.path.join(basedir, 'data/freqs.db') #TODO: make customizable
+    db = database.Database(dbfile, mecab_fields)
+    with db:
+      # process files
+      print('db is %s' % type(db))
+      logger.out('analyzing text files')
+      analyze(args, formatter, parser, encoding, output, db)
+      logger.out('done analyzing')
+  except sqlite3.Error as e:
+    logger.err('database error: %s' % e)
   finally:
     if output:
       output.close()
 
-def analyze(files, formatter, parser, encoding, output):
+def analyze(files, formatter, parser, encoding, output, db):
   freqcounter = freq.FrequencyCounter()
   # process all files line by line
   for filename in files:
@@ -97,7 +107,8 @@ def analyze(files, formatter, parser, encoding, output):
           if output:
             output.write(trimmed_line.encode('utf-8'))
           for word_data in mecab_data:
-            freqcounter.add_word(word_data)
+            db.insert_data(word_data)
+            #freqcounter.add_word(word_data)
           #TODO: continue counting word frequencies 
 
 if __name__ == '__main__':

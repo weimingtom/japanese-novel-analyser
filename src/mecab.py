@@ -43,8 +43,9 @@ class MecabData():
     return 0
 
 class PyMeCab():
-  def __init__(self):
+  def __init__(self, mecab_fields):
     self.tagger = MeCab.Tagger('')
+    self.fields = mecab_fields
 
   def parse(self, line):
     node = self.tagger.parseToNode(line.encode('utf-8'))
@@ -56,8 +57,8 @@ class PyMeCab():
           fields = node.feature.decode('utf-8').split(',')
           # get part-of-speech features 
           #print('node %s with type %s and len %s' % (word, type(word), len(word)))
-          pos = fields[0:6]
-          if fields[6] != '*': # take root instead of conjugation
+          pos = fields[0:self.fields]
+          if len(fields) > 6 and fields[6] != '*': # take root
             word = fields[6] 
           data.append(MecabData(word, pos))
         except UnicodeDecodeError as e:
