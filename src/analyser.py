@@ -13,7 +13,7 @@ Options:
   -e, --encoding=ENC  Set the encoding for the files to ENC
   -f, --format=FORMAT Set the format of the files;
                       FORMAT is  'plain', 'aozora' or 'html`
-  -o, --output=FILE   Output cleaned up input file to FILE
+  -o, --output=FILE   Write cleaned up up input file to FILE
 """
 
 import sys
@@ -23,6 +23,7 @@ import os.path
 
 import formats
 import mecab
+import freq
 from logger import logger
 
 def main():
@@ -79,6 +80,7 @@ def main():
       output.close()
 
 def analyze(files, formatter, parser, encoding, output):
+  freqcounter = freq.FrequencyCounter()
   # process all files line by line
   for filename in files:
     logger.out('reading %s' % filename)
@@ -95,7 +97,7 @@ def analyze(files, formatter, parser, encoding, output):
           if output:
             output.write(trimmed_line.encode('utf-8'))
           for word_data in mecab_data:
-            print('%s' % word_data)
+            freqcounter.add_word(word_data)
           #TODO: continue counting word frequencies 
 
 if __name__ == '__main__':

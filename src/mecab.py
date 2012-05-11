@@ -23,19 +23,18 @@ class PyMeCab():
     self.tagger = MeCab.Tagger('')
 
   def parse(self, line):
-    taglines = self.tagger.parse(line.encode('utf-8')).split('\n')
+    node = self.tagger.parseToNode(line.encode('utf-8'))
     data = []
-    for tags in taglines:
-      fields = re.split('[\t,]', tags)
-      l = len(fields)
-      if l > 7:
-        word = fields[0]
-        pos = fields[1:7]
-        if fields[7] != '*': # take root instead of conjugation
-          word = fields[7] 
+    while node:
+      stat = node.stat
+      if stat == 0 or stat == 1: # MECAB_NOR_NODE or MECAB_UNK_NODE
+        word = node.surface
+        fields = node.feature.split(',')
+        pos = fields[0:6]
+        if fields[6] != '*': # take root instead of conjugation
+          word = fields[6] 
         data.append(MecabData(word, pos))
-      elif l > 1 and l < 7:
-        logger.err('incomplete parse: %s' % tags)
-      # else empty line
+      # else MECAB_BOS_NODE or MECAB_EOS_NOD, egnoro
+      node = node.next
     return data
 
