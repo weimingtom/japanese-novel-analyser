@@ -8,6 +8,7 @@ import os.path
 import csv
 import re
 
+import config
 from logger import logger
 
 """
@@ -37,9 +38,9 @@ class AozoraFormat(Format):
     self.skip = False
     # load gaiji codes
     self.gaiji_codes = {}
-    gaiji_file = os.path.join(basedir, 'data/gaiji_codes')
+    gaijifile = os.path.join(basedir, config.gaijifile)
     try:
-      fp = open(gaiji_file, 'r')
+      fp = open(gaijifile, 'r')
     except IOError as e:
       logger.err('error opening gaiji codes file: %s' % (filename, e))
     else:

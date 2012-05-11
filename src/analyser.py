@@ -26,6 +26,7 @@ import formats
 import mecab
 import freq
 import database
+import config
 from logger import logger
 
 def main():
@@ -40,10 +41,9 @@ def main():
     logger.err('for help use --help')
     sys.exit(2)
   # process options
-  formatter = 'aozora'
-  encoding = 'utf-8'
-  output = None
-  tablename = 'freqs'
+  formatter = config.formatter
+  encoding = config.encoding
+  output = config.output
   mecab_fields = 6 # mecab pos fields, should not change
   for o, a in opts:
     if o in ('-h', '--help'):
@@ -75,11 +75,10 @@ def main():
     formatter = formats.Format()
   parser = mecab.PyMeCab(mecab_fields)
   try:
-    dbfile = os.path.join(basedir, 'data/freqs.db') #TODO: make customizable
+    dbfile = os.path.join(basedir, config.dbfile)
     db = database.Database(dbfile, mecab_fields)
     with db:
       # process files
-      print('db is %s' % type(db))
       logger.out('analyzing text files')
       analyze(args, formatter, parser, encoding, output, db)
       logger.out('done analyzing')
@@ -108,8 +107,6 @@ def analyze(files, formatter, parser, encoding, output, db):
             output.write(trimmed_line.encode('utf-8'))
           for word_data in mecab_data:
             db.insert_data(word_data)
-            #freqcounter.add_word(word_data)
-          #TODO: continue counting word frequencies 
 
 if __name__ == '__main__':
   main()
