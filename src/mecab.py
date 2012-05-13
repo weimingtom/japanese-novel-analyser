@@ -44,7 +44,7 @@ class MecabData():
     return 0
 
 class PyMeCab():
-  def __init__(self)
+  def __init__(self):
     self.tagger = MeCab.Tagger('')
     self.fields = config.mecab_fields
 

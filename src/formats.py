@@ -66,7 +66,7 @@ class AozoraFormat(Format):
       elif self.linecount <= 30:
         self.skip = True
     # look for final words
-    if re.match (ur'\s*底本', line) or re.match(ur'\s*このテキストは', line):
+    if re.match (ur'\s*(底本|このテキストは|本書は)', line):
       self.skip = True
     # if in skip mode, ignore line
     if self.skip:
