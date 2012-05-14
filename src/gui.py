@@ -9,12 +9,14 @@ import gtk
 import config
 
 class FreqGUI():
-  def __init__(self, db):
+  def __init__(self, db, listsize):
     self.database = db
+    self.listsize = listsize
     self.freqmode = 0
     self.word = u''
     self.posvalues = [config.ALL]*config.mecab_fields
     self.update_mode = False
+    self.storeend = None
     self.create_layout()
     self.update()
     self.window.show_all()
@@ -35,11 +37,12 @@ class FreqGUI():
     self.view = gtk.TreeView(self.store)
     self.add_columns(self.view)
     self.view.set_rules_hint(True)
+    self.view.connect('row-activated', self.list_select)
     sw.add(self.view)
     # split with selection boxes, word list and status bar
     topbox = gtk.VBox(False, 10)
     hbox = gtk.HBox(True, 10)
-    self.status = gtk.Label('')
+    self.status = gtk.Statusbar()
     topbox.pack_start(hbox, False, False)
     topbox.pack_start(sw, True, True)
     topbox.pack_start(self.status, False, False)
@@ -104,14 +107,28 @@ class FreqGUI():
     self.update_mode = False
 
   def update_list(self):
-    (results, fsum) = self.database.select(self.word, self.posvalues, 50)
+    self.dsum = 0
+    self.fsum = self.database.select(self.word, self.posvalues)
     self.view.hide()
     self.store.clear()
+    self.load_list()
+    self.view.show()
+
+  def load_list(self):
+    results = self.database.select_results(self.listsize)
+    print('loading %s more' % len(results))
+    self.view.hide()
     for r in results:
       rl = list(r)
+      self.dsum = self.dsum + r[0] 
       if not self.freqmode:
-        rl[0] = 100.00 * rl[0] / fsum
+        rl[0] = 100.00 * rl[0] / self.fsum
       self.store.append(rl)
+    if len(results) >= self.listsize:
+      remaining = self.fsum - self.dsum
+      if not self.freqmode:
+        remaining = 100.00 * remaining / self.fsum
+      self.storeend = self.store.append([remaining, u'Load more…'] + [u'']*config.mecab_fields)
     self.view.show()
 
   """ add header columns to view """
@@ -141,8 +158,10 @@ class FreqGUI():
 
   def update(self):
     if not self.update_mode: # to prevent recursive updates
-      self.update_list()
+      # important to first update selections so db cursor
+      # for the list is preserved
       self.update_selections()
+      self.update_list()
 
   def changed_word(self, entry):
     self.word = entry.get_text().decode('utf-8')
@@ -163,8 +182,15 @@ class FreqGUI():
       self.posvalues[number] = self.pos_stores[number][index][0].decode('utf-8')
       self.update()
 
-  def list_scroll(self, view):
-    pass
+  def list_select(self, view, row, col):
+    print('selected %s, %s' % (row, col))
+    text = self.store[row][1].decode('utf-8')
+    self.status.push(0, self.store[row][1])
+    #print('scrolled to %s, %s' % (hadjustment.get_value(), vadjustment.get_value()))
+    if self.storeend != None and self.store.get_value(self.storeend, 1) == text:
+      self.store.remove(self.storeend)
+      self.storeend = None
+      self.load_list()
 
   def show(self):
     gtk.main()

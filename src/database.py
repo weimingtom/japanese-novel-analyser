@@ -67,16 +67,16 @@ class Database():
   - be set to *     : No filtering
   Note that word can not be set to group.
   """
-  def select(self, word, pos, amount):
+  def select(self, word, pos):
     fieldvalues = [word] + pos
     (sql, sql_sum, vals) = self.select_query(fieldvalues)
-    logger.out(u'executing query:\n%s\nwith values %s' % (sql, vals))
-    logger.out(u'executing sum query:\n%s\nwith values %s' % (sql_sum, vals))
-    self.c.execute(sql, vals)
-    result = self.c.fetchmany(amount)
     self.c.execute(sql_sum, vals)
     fsum = self.c.fetchone()[0]
-    return (result, fsum) 
+    self.c.execute(sql, vals)
+    return fsum
+
+  def select_results(self, amount):
+    return self.c.fetchmany(amount)
   
   def select_options_query(self, fieldvalues, i):
     assert i >= 0 and i < self.fields
