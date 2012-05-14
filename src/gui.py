@@ -108,15 +108,17 @@ class FreqGUI():
 
   def update_list(self):
     self.dsum = 0
-    self.fsum = self.database.select(self.word, self.posvalues)
+    result = self.database.select(self.word, self.posvalues)
+    self.fsum = result[0]
+    rows = result[1]
     self.view.hide()
+    self.status.push(0, 'Query matches %s unique words appearing a total of %s times.' % (rows, self.fsum))
     self.store.clear()
     self.load_list()
     self.view.show()
 
   def load_list(self):
     results = self.database.select_results(self.listsize)
-    print('loading %s more' % len(results))
     self.view.hide()
     for r in results:
       rl = list(r)
@@ -183,10 +185,7 @@ class FreqGUI():
       self.update()
 
   def list_select(self, view, row, col):
-    print('selected %s, %s' % (row, col))
     text = self.store[row][1].decode('utf-8')
-    self.status.push(0, self.store[row][1])
-    #print('scrolled to %s, %s' % (hadjustment.get_value(), vadjustment.get_value()))
     if self.storeend != None and self.store.get_value(self.storeend, 1) == text:
       self.store.remove(self.storeend)
       self.storeend = None

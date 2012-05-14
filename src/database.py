@@ -71,9 +71,9 @@ class Database():
     fieldvalues = [word] + pos
     (sql, sql_sum, vals) = self.select_query(fieldvalues)
     self.c.execute(sql_sum, vals)
-    fsum = self.c.fetchone()[0]
+    result = self.c.fetchone()
     self.c.execute(sql, vals)
-    return fsum
+    return result # (fsum, rows)
 
   def select_results(self, amount):
     return self.c.fetchmany(amount)
@@ -117,8 +117,8 @@ class Database():
 
   """ create the query for frequency selection """
   def select_query(self, fieldvalues):
-    sql_sum = u'SELECT sum(freq)'
-    sql = sql_sum
+    sql_sum = u'SELECT sum(freq), COUNT(freq)'
+    sql = u'SELECT sum(freq)'
     # add displayed fields
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE:
