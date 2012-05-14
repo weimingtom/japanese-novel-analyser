@@ -6,7 +6,7 @@ and performing queries on the data.
 import sqlite3
 
 import config
-from config import IGNORE
+from config import ALL, IGNORE
 from logger import logger
 
 """
@@ -18,9 +18,9 @@ class Database():
   def __init__(self, filename):
     self.filename = filename
     self.fields = config.mecab_fields + 1
-    self.fieldnames = ['word']
+    self.fieldnames = [u'word']
     for i in range(config.mecab_fields):
-      self.fieldnames.append('pos' + str(i))
+      self.fieldnames.append(u'pos' + str(i))
 
   def __enter__(self):
     logger.out('connecting to database')
@@ -31,25 +31,25 @@ class Database():
 
   def create_table(self):
     # TODO: use custom tablename if possible
-    sql_create = 'CREATE TABLE IF NOT EXISTS freqs (freq INTEGER'
+    sql_create = u'CREATE TABLE IF NOT EXISTS freqs (freq INTEGER'
     for i in range(self.fields):
-      sql_create = sql_create + ', ' + self.fieldnames[i] + ' TEXT'
-    sql_create = sql_create + ', PRIMARY KEY ('
+      sql_create = sql_create + u', ' + self.fieldnames[i] + u' TEXT'
+    sql_create = sql_create + u', PRIMARY KEY ('
     for i in range(self.fields):
-      sql_create = sql_create + self.fieldnames[i] + ', '
-      sql_create = sql_create.rstrip(', ')
-    sql_create = sql_create + '))'
+      sql_create = sql_create + self.fieldnames[i] + u', '
+      sql_create = sql_create.rstrip(u', ')
+    sql_create = sql_create + u'))'
     self.c.execute(sql_create)
     self.conn.commit()
 
   def prepare_queries(self):
-    self.sql_up = 'UPDATE freqs SET freq=freq + 1 WHERE '
-    self.sql_in = 'INSERT INTO freqs VALUES (1'
+    self.sql_up = u'UPDATE freqs SET freq=freq + 1 WHERE '
+    self.sql_in = u'INSERT INTO freqs VALUES (1'
     for i in range(self.fields):
-      self.sql_up = self.sql_up + self.fieldnames[i] + '=? AND '
-      self.sql_in = self.sql_in + ', ?'
-    self.sql_up = self.sql_up.rstrip(' AND')
-    self.sql_in = self.sql_in + ')'
+      self.sql_up = self.sql_up + self.fieldnames[i] + u'=? AND '
+      self.sql_in = self.sql_in + u', ?'
+    self.sql_up = self.sql_up.rstrip(u' AND')
+    self.sql_in = self.sql_in + u')'
 
   def insert_data(self, fieldvalues):
     self.c.execute(self.sql_up, fieldvalues)
@@ -57,7 +57,7 @@ class Database():
       self.c.execute(self.sql_in, fieldvalues)
 
   def clear_table(self):
-    self.c.execute('''DELETE FROM freqs''')
+    self.c.execute(u'DELETE FROM freqs')
     self.conn.commit()
 
   """
@@ -67,10 +67,11 @@ class Database():
   - be set to *     : No filtering
   Note that word can not be set to group.
   """
-  def select(self, fieldvalues, amount):
+  def select(self, word, pos, amount):
+    fieldvalues = [word] + pos
     (sql, sql_sum, vals) = self.select_query(fieldvalues)
-    logger.out('executing query:\n%s\nwith values %s' % (sql, vals))
-    logger.out('executing sum query:\n%s\nwith values %s' % (sql_sum, vals))
+    logger.out(u'executing query:\n%s\nwith values %s' % (sql, vals))
+    logger.out(u'executing sum query:\n%s\nwith values %s' % (sql_sum, vals))
     self.c.execute(sql, vals)
     result = self.c.fetchmany(amount)
     self.c.execute(sql_sum, vals)
@@ -79,21 +80,24 @@ class Database():
   
   def select_options_query(self, fieldvalues, i):
     assert i >= 0 and i < self.fields
-    sql = 'SELECT DISTINCT ' + self.fieldnames[i]
+    sql = u'SELECT DISTINCT ' + self.fieldnames[i]
     (sql_fw, vals) = self.fromwhere_query(fieldvalues, i)
-    return (sql + sql_fw, vals)
+    sql = sql + sql_fw
+    sql = sql + u'\nORDER BY ' + self.fieldnames[i] + ' ASC'
+    return (sql, vals)
 
-  def select_options(self, fieldvalues):
+  def select_options(self, word, pos):
+    fieldvalues = [word] + pos
     all_options = []
     for i in range(1, self.fields): # exclude word from options
       options = []
-      options.append('*')
+      options.append(ALL)
       options.append(IGNORE)
       (sql, vals) = self.select_options_query(fieldvalues, i)
       self.c.execute(sql, vals)
       result = self.c.fetchall()
       for r in result:
-        if r[0] != '*':
+        if r[0] != ALL:
           options.append(r[0])
       all_options.append(options)
     return all_options
@@ -101,39 +105,39 @@ class Database():
   """ create the FROM WHERE part of the query """
   def fromwhere_query(self, fieldvalues, exclude=-1):
     vals = []
-    sql = '\nFROM freqs\nWHERE '
+    sql = u'\nFROM freqs\nWHERE '
     for i in range(self.fields):
-      if fieldvalues[i] != IGNORE and fieldvalues[i] != '*' \
-          and fieldvalues[i] != '' and exclude != i:
-        sql = sql + self.fieldnames[i] + '=? AND '
+      if fieldvalues[i] != IGNORE and fieldvalues[i] != ALL \
+          and fieldvalues[i] != u'' and exclude != i:
+        sql = sql + self.fieldnames[i] + u'=? AND '
         vals.append(fieldvalues[i])
-    sql = sql.rstrip('AND ')
-    sql = sql.rstrip('\nWHERE ')
+    sql = sql.rstrip(u'AND ')
+    sql = sql.rstrip(u'\nWHERE ')
     return (sql, vals)
 
   """ create the query for frequency selection """
   def select_query(self, fieldvalues):
-    sql_sum = 'SELECT sum(freq)'
+    sql_sum = u'SELECT sum(freq)'
     sql = sql_sum
     # add displayed fields
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE:
-        sql = sql + ', ' + self.fieldnames[i]
+        sql = sql + u', ' + self.fieldnames[i]
       else:
-        sql = sql + ', "' + IGNORE + '"'
+        sql = sql + u', "' + IGNORE + u'"'
     # add FROM WHERE query
     (sql_fw, vals) = self.fromwhere_query(fieldvalues)
     sql = sql + sql_fw
     sql_sum = sql_sum + sql_fw
     # add grouping options
-    sql = sql + '\nGROUP BY '
+    sql = sql + u'\nGROUP BY '
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE:
-        sql = sql + self.fieldnames[i] + ', '
-    sql = sql.rstrip(', ')
-    sql = sql.rstrip('\nGROUP BY ')
+        sql = sql + self.fieldnames[i] + u', '
+    sql = sql.rstrip(u', ')
+    sql = sql.rstrip(u'\nGROUP BY ')
     # add ordering
-    sql = sql + '\nORDER BY sum(freq) DESC'
+    sql = sql + u'\nORDER BY sum(freq) DESC'
     return (sql, sql_sum, vals)
   
   def __exit__(self, typ, value, traceback):

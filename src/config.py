@@ -5,8 +5,10 @@ config.py: This file stores default configuration options.
 import sys
 import os.path
 
+# string to use for displaying all entries
+ALL = u'*'
 # string to use for accumulating functionality
-IGNORE = '#'
+IGNORE = u'#'
   
 formatter = 'aozora'
 encoding  = 'utf-8'
