@@ -11,38 +11,6 @@ import MeCab
 import config
 from logger import logger
 
-class MecabData():
-  def __init__(self, word, pos):
-    self.word = word
-    self.pos = pos
-
-  def __repr__(self):
-    return self.word + u' (' + u','.join(self.pos) + u')'
-
-  def __hash__(self):
-    return hash(self.__repr__())
-
-  def __eq__(self, other):
-    if self.word != other.word:
-      return False
-    for i in range(len(self.pos)):
-      if self.pos[i] != other.pos[i]:
-        return False
-    return True
-
-  def __cmp__(self, other):
-    if self.word < other.word:
-      return -1
-    elif self.word > other.word:
-      return 1
-    else:
-      for i in range(len(self.pos)):
-        if self.pos[i] < other.pos[i]:
-          return -1
-        elif self.pos[i] > other.pos[i]:
-          return 1
-    return 0
-
 class PyMeCab():
   def __init__(self):
     self.tagger = MeCab.Tagger('')
@@ -61,7 +29,8 @@ class PyMeCab():
           pos = fields[0:self.fields]
           if len(fields) > 6 and fields[6] != '*': # take root
             word = fields[6] 
-          data.append(MecabData(word, pos))
+          fieldvalues = [word] + pos
+          data.append(fieldvalues)
         except UnicodeDecodeError as e:
           logger.err('could not decode %s' % node.surface)
       # else MECAB_BOS_NODE or MECAB_EOS_NOD, ignore

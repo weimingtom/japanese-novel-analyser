@@ -13,8 +13,9 @@ class FreqGUI():
     self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
     self.window.connect('delete_event', self.delete_event)
     self.window.connect('destroy', self.destroy)
-    self.window.set_border_width(10)
+    self.window.set_default_size(800, 600)
     self.window.set_title('Frequency Browser')
+    self.window.set_border_width(5)
     topbox = gtk.VBox(False, 10)
     hbox = gtk.HBox(True, 10)
     self.store = gtk.ListStore(float, str, *([str]*config.mecab_fields))
@@ -40,23 +41,25 @@ class FreqGUI():
       if i < 4:
         selvar = '*'
       else:
-        selvar = 'IGNORE'
+        selvar = config.IGNORE
     selmax = 0
-    ignmin = 4
+    ignmin = 0
     vbox = gtk.VBox(False, 0)
-    lb = gtk.Label('Search')
-    entry = gtk.Entry(max=10)
-    entry.connect('activate', self.changed_word)
-    entry.set_width_chars(5)
+    lb = gtk.Label('Freq')
+    cb = gtk.combo_box_new_text()
+    cb.append_text('Rel')
+    cb.append_text('Abs')
+    cb.set_active(0)
+    cb.connect('changed', self.changed_freq, i)
     vbox.pack_start(lb, False, False, 0)
-    vbox.pack_start(entry, False, False, 0)
+    vbox.pack_start(cb, False, False, 0)
     hbox.pack_start(vbox, True, True, 0)
 
     vbox = gtk.VBox(False, 0)
     lb = gtk.Label('Word')
     entry = gtk.Entry(max=40)
     entry.connect('activate', self.changed_word)
-    entry.set_width_chars(10)
+    entry.set_width_chars(5)
     vbox.pack_start(lb, False, False, 0)
     vbox.pack_start(entry, False, False, 0)
     hbox.pack_start(vbox, True, True, 0)
@@ -68,14 +71,14 @@ class FreqGUI():
       if i <= selmax:
         cb.append_text('*')
       if i >= ignmin:
-        cb.append_text('IGNORE')
-      if self.posvars[i] == 'IGNORE':
+        cb.append_text(config.IGNORE)
+      if self.posvars[i] == config.IGNORE:
         ignmin = i
       elif self.posvars[i] != '*':
         selmax = i + 1
       cb.set_active(0)
       cb.connect('changed', self.changed_pos, i)
-      lb = gtk.Label(' ' + str(i + 1))
+      lb = gtk.Label('POS ' + str(i + 1))
       vbox.pack_start(lb, False, False, 0)
       vbox.pack_start(cb, False, False, 0)
       hbox.pack_start(vbox, True, True, 0)
@@ -108,6 +111,11 @@ class FreqGUI():
   def changed_word(self, entry):
     text = entry.get_text()
     print('changed word to %s' % (text))
+
+  def changed_freq(self, combobox):
+    model = combobox.get_model()
+    index = combobox.get_active()
+    print('changed freq to %s' % (number, model[index][0]))
 
   def changed_pos(self, combobox, number):
     model = combobox.get_model()

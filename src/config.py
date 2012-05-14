@@ -6,7 +6,7 @@ import sys
 import os.path
 
 # string to use for accumulating functionality
-IGNORE = 'IGNORE'
+IGNORE = '#'
   
 formatter = 'aozora'
 encoding  = 'utf-8'
