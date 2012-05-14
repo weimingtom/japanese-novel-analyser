@@ -77,41 +77,34 @@ class Database():
     fsum = self.c.fetchone()[0]
     return (result, fsum) 
   
-  def select_options_query(self, fieldvalues, pos_i):
-    assert pos_i >= 0 and pos_i < config.mecab_fields
-    sql = 'SELECT DISTINCT pos' + str(pos_i)
-    (sql_fw, vals) = self.fromwhere_query(fieldvalues)
+  def select_options_query(self, fieldvalues, i):
+    assert i >= 0 and i < self.fields
+    sql = 'SELECT DISTINCT ' + self.fieldnames[i]
+    (sql_fw, vals) = self.fromwhere_query(fieldvalues, i)
     return (sql + sql_fw, vals)
 
-  def select_options(fieldvalues):
+  def select_options(self, fieldvalues):
     all_options = []
-    selmax = 0
-    ignmin = config.mecab_fields
-    for i in range(config.mecab_fields):
-      all_options.append([])
-      if fieldvalues[i] == IGNORE:
-        if i > 0 and ignmin > i:
-          all_options[i - 1].append(IGNORE)
-        ignmin = i + 1
-      elif fieldvalues[i] != '*':
-        selmax = i + 1
-      if i < ignmin:
-        all_options[i].append('*')
-      if i <= selmax: # append part of speech options
-        (sql, vals) = select_options_query(fieldvalues, i)
-        self.c.execute(sql, vals)
-        result = self.c.fetchall()
-        for r in result:
-          all_options[i].append(r[0])
-      if i >= ignmin - 1:
-        all_options[i].append(IGNORE)
+    for i in range(1, self.fields): # exclude word from options
+      options = []
+      options.append('*')
+      options.append(IGNORE)
+      (sql, vals) = self.select_options_query(fieldvalues, i)
+      self.c.execute(sql, vals)
+      result = self.c.fetchall()
+      for r in result:
+        if r[0] != '*':
+          options.append(r[0])
+      all_options.append(options)
+    return all_options
 
   """ create the FROM WHERE part of the query """
-  def fromwhere_query(self, fieldvalues):
+  def fromwhere_query(self, fieldvalues, exclude=-1):
     vals = []
     sql = '\nFROM freqs\nWHERE '
     for i in range(self.fields):
-      if fieldvalues[i] != IGNORE and fieldvalues[i] != '*' and fieldvalues[i] != '':
+      if fieldvalues[i] != IGNORE and fieldvalues[i] != '*' \
+          and fieldvalues[i] != '' and exclude != i:
         sql = sql + self.fieldnames[i] + '=? AND '
         vals.append(fieldvalues[i])
     sql = sql.rstrip('AND ')
