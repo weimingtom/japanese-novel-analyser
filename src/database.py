@@ -37,7 +37,7 @@ class Database():
     sql_create = sql_create + u', PRIMARY KEY ('
     for i in range(self.fields):
       sql_create = sql_create + self.fieldnames[i] + u', '
-      sql_create = sql_create.rstrip(u', ')
+    sql_create = sql_create.rstrip(u', ')
     sql_create = sql_create + u'))'
     self.c.execute(sql_create)
     self.conn.commit()
@@ -83,7 +83,7 @@ class Database():
     sql = u'SELECT DISTINCT ' + self.fieldnames[i]
     (sql_fw, vals) = self.fromwhere_query(fieldvalues, i)
     sql = sql + sql_fw
-    sql = sql + u'\nORDER BY ' + self.fieldnames[i] + ' ASC'
+    sql = sql + u'\nORDER BY ' + self.fieldnames[i] + u' ASC'
     return (sql, vals)
 
   def select_options(self, word, pos):
@@ -117,7 +117,7 @@ class Database():
 
   """ create the query for frequency selection """
   def select_query(self, fieldvalues):
-    sql_sum = u'SELECT sum(freq), COUNT(freq)'
+    sql_sum = u'SELECT sum(freq), count(freq)'
     sql = u'SELECT sum(freq)'
     # add displayed fields
     for i in range(self.fields):

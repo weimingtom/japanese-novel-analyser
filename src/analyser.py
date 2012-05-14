@@ -13,6 +13,7 @@ Read and analyse each FILE.
 Options:
   -h, --help          Display this help
   -e, --encoding=ENC  Set the encoding for the files to ENC
+  -r, --recursive     Read files in all folders recursively
   -f, --format=FORMAT Set the format of the files;
                       FORMAT is  'plain', 'aozora' or 'html`
   -o, --output=FILE   Write cleaned up up input file to FILE
@@ -37,7 +38,7 @@ def main():
   basedir = config.get_basedir()
   # parse command line options
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:', ['help','format=','encoding=', 'output=', 'resetdb'])
+    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:r', ['help','format=','encoding=', 'output=', 'resetdb', 'recursive'])
   except getopt.error as opterr:
     logger.err(opterr)
     logger.err('for help use --help')
@@ -47,6 +48,7 @@ def main():
   encoding = config.encoding
   output = config.output
   reset = False
+  recursive = False
   for o, a in opts:
     if o in ('-h', '--help'):
       logger.out(__doc__)
@@ -70,6 +72,8 @@ def main():
         logger.err('error opening %s: %s' % (a, e))
     if o in ('--resetdb'):
       reset = True
+    if o in ('-r', '--recursive'):
+      recursive = True
   # create formatter and parser
   if(formatter == 'aozora'):
     formatter = formats.AozoraFormat(basedir)
@@ -87,7 +91,15 @@ def main():
         logger.out('cleared database table')
       # process files
       logger.out('analyzing text files')
-      analyze(args, formatter, parser, encoding, output, db)
+      if recursive:
+        for dirname in args:
+          for dirpath, dirnames, files in os.walk(dirname):
+            logger.out('going through directory %s' % dirpath)
+            for filename in files:
+              analyze(os.path.join(dirpath, filename), formatter, parser, encoding, output, db)
+      else:
+        for filename in args:
+          analyze(filename, formatter, parser, encoding, output, db)
       logger.out('done analyzing')
   except sqlite3.Error as e:
     logger.err('database error: %s' % e)
@@ -95,25 +107,23 @@ def main():
     if output:
       output.close()
 
-def analyze(files, formatter, parser, encoding, output, db):
-  freqcounter = freq.FrequencyCounter()
+def analyze(filename, formatter, parser, encoding, output, db):
+  logger.out('reading %s' % filename)
+  formatter.new_file()
   # process all files line by line
-  for filename in files:
-    logger.out('reading %s' % filename)
-    formatter.new_file()
-    try:
-      fp = codecs.open(filename, 'r', encoding)
-    except IOError as e:
-      logger.err('error opening %s: %s' % (filename, e))
-    else:
-      with fp:
-        for line in fp:
-          trimmed_line = formatter.trim(line)
-          mecab_data = parser.parse(trimmed_line)
-          if output:
-            output.write(trimmed_line.encode('utf-8'))
-          for word_data in mecab_data:
-            db.insert_data(word_data)
+  try:
+    fp = codecs.open(filename, 'r', encoding)
+  except IOError as e:
+    logger.err('error opening %s: %s' % (filename, e))
+  else:
+    with fp:
+      for line in fp:
+        trimmed_line = formatter.trim(line)
+        mecab_data = parser.parse(trimmed_line)
+        if output:
+          output.write(trimmed_line.encode('utf-8'))
+        for word_data in mecab_data:
+          db.insert_data(word_data)
 
 if __name__ == '__main__':
   main()

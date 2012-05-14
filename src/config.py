@@ -16,7 +16,7 @@ output    = None
 dbfile    = 'data/freqs.db'
 gaijifile ='data/gaiji_codes'
 mecab_fields = 6 # mecab pos fields, should not change
-top_number = 100
+list_number = 100 # number of items to display in list
 
 def get_basedir():
   return os.path.normpath(os.path.join(

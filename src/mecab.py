@@ -25,9 +25,8 @@ class PyMeCab():
           word = node.surface.decode('utf-8')
           fields = node.feature.decode('utf-8').split(',')
           # get part-of-speech features 
-          #print('node %s with type %s and len %s' % (word, type(word), len(word)))
           pos = fields[0:self.fields]
-          if len(fields) > 6 and fields[6] != '*': # take root
+          if fields[6] != u'*': # take root
             word = fields[6] 
           fieldvalues = [word] + pos
           data.append(fieldvalues)

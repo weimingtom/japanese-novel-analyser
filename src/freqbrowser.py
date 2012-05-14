@@ -10,7 +10,7 @@ or conjugations. For these it has grouping and filter options.
 Usage: freqbrowser.py [OPTION]... FILTER...
 Display the frequencies with the given FILTERs
 
--n, --number=N   Display the top N frequencies
+-n, --number=N   Display the top N frequencies in list
 """
 
 import sys
@@ -34,7 +34,7 @@ def main():
     logger.err('for help use --help')
     sys.exit(2)
   # process config and options
-  top_number = config.top_number #TODO: remove possibly
+  list_number = config.list_number
   for o, a in opts:
     if o in ('-h', '--help'):
       logger.out(__doc__)
@@ -45,15 +45,15 @@ def main():
       except ValueError:
         logger.err('invalid argument for top number: %s' % a)
         sys.exit(2)
-      if top_number <= 0:
-        logger.err('invalid top number: %s' % top_number)
+      if list_number <= 0:
+        logger.err('invalid top number: %s' % list_number)
         sys.exit(2)
   # create formatter and parser
   try:
     dbfile = os.path.join(basedir, config.dbfile)
     db = database.Database(dbfile)
     with db:
-      display_gui(db, top_number)
+      display_gui(db, list_number)
   except sqlite3.Error as e:
     logger.err('database error: %s' % e)
 

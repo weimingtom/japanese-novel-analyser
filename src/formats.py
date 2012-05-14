@@ -65,8 +65,8 @@ class AozoraFormat(Format):
         return u''
       elif self.linecount <= 30:
         self.skip = True
-    # look for final words
-    if re.match (ur'\s*(底本|このテキストは|本書は)', line):
+    # look for postscript
+    if re.match (ur'\s*(底本|このテキストは|本書は|初出)', line):
       self.skip = True
     # if in skip mode, ignore line
     if self.skip:
@@ -90,7 +90,7 @@ class AozoraFormat(Format):
       return self.gaiji_codes[gaiji_code]
     except KeyError:
       logger.err('found gaiji with no equivalent: %s' % gaiji_match.group(0))
-      return ''
+      return u''
 
 """
 This formatter takes texts with HTML tags and removes them.

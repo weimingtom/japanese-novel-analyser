@@ -14,7 +14,7 @@ class FreqGUI():
     self.listsize = listsize
     self.freqmode = 0
     self.word = u''
-    self.posvalues = [config.ALL]*config.mecab_fields
+    self.posvalues = [config.IGNORE]*config.mecab_fields
     self.update_mode = False
     self.storeend = None
     self.create_layout()
@@ -112,7 +112,7 @@ class FreqGUI():
     self.fsum = result[0]
     rows = result[1]
     self.view.hide()
-    self.status.push(0, 'Query matches %s unique words appearing a total of %s times.' % (rows, self.fsum))
+    self.status.push(0, u'Query matches %s unique words appearing a total of %s times.' % (rows, self.fsum))
     self.store.clear()
     self.load_list()
     self.view.show()
@@ -136,18 +136,18 @@ class FreqGUI():
   """ add header columns to view """
   def add_columns(self, view):
     rt = gtk.CellRendererText()
-    self.freqcolumn = gtk.TreeViewColumn('Frequency (%)', rt, text=0)
+    self.freqcolumn = gtk.TreeViewColumn(u'Frequency (%)', rt, text=0)
     self.freqcolumn.set_expand(True)
     view.append_column(self.freqcolumn)
 
     rt = gtk.CellRendererText()
-    column = gtk.TreeViewColumn('Word', rt, text=1)
+    column = gtk.TreeViewColumn(u'Word', rt, text=1)
     column.set_expand(True)
     view.append_column(column)
     
     for i in range(config.mecab_fields):
       rt = gtk.CellRendererText()
-      column = gtk.TreeViewColumn('POS' + str(i + 1), rt, text=(i + 2))
+      column = gtk.TreeViewColumn(u'POS' + unicode(i + 1), rt, text=(i + 2))
       column.set_expand(True)
       view.append_column(column)
   
@@ -173,9 +173,9 @@ class FreqGUI():
     index = freqbox.get_active()
     self.freqmode = freqbox.get_active()
     if self.freqmode:
-      self.freqcolumn.set_title('Frequency (#)')
+      self.freqcolumn.set_title(u'Frequency (#)')
     else:
-      self.freqcolumn.set_title('Frequency (%)')
+      self.freqcolumn.set_title(u'Frequency (%)')
     self.update()
 
   def changed_pos(self, combobox, number):
