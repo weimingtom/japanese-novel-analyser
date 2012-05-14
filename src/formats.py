@@ -46,10 +46,12 @@ class AozoraFormat(Format):
     else:
       with fp:
         for line in fp:
-          match = re.match(ur'^(?P<GaijiCode>\d-\d{1,2}-\d{1,2})\t\\UTF{(?P<UtfCode>[0-9a-fA-F]+)}', line)
-          if match: # if no match, it is a CID code
-            gaiji_code = match.group('GaijiCode')
+          match = re.match(ur'^0x(?P<JisCode>[0-9A-Fa-f]+)\tU\+(?P<UtfCode>[0-9a-fA-F]+)\+?(?P<UtfCode2>[0-9a-fA-F]+)?', line)
+          if match:
+            gaiji_code = int(match.group('JisCode'), 16)
             utf_char = unichr(int(match.group('UtfCode'), 16))
+            if match.group('UtfCode2'): # 2-character representation
+              utf_char = utf_char + unichr(int(match.group('UtfCode2'), 16))
             self.gaiji_codes[gaiji_code] = utf_char
 
   def new_file(self):
@@ -72,7 +74,8 @@ class AozoraFormat(Format):
     if self.skip:
       return u''
     # replace gaiji
-    line = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, line)
+    #line = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, line)
+    line = re.sub(ur'※?［＃.*?(?P<JisPlane>\d)\-(?P<JisRow>\d{1,2})\-(?P<JisCol>\d{1,2})］', self.replace_gaiji, line)
     # handle the alteration mark
     line = re.sub(ur'※［＃歌記号］', u'〽', line);
     # remove other Aozora constructs
@@ -85,7 +88,12 @@ class AozoraFormat(Format):
     return line
 
   def replace_gaiji(self, gaiji_match):
-    gaiji_code = gaiji_match.group('GaijiCode')
+    jis_plane = int(gaiji_match.group('JisPlane'))
+    jis_row = int(gaiji_match.group('JisRow'))
+    jis_col = int(gaiji_match.group('JisCol'))
+    gaiji_code = 0x100 * (jis_row + 0x20) + (jis_col + 0x20)
+    if jis_plane == 2:
+      gaiji_code = gaiji_code + 0x8080
     try:
       return self.gaiji_codes[gaiji_code]
     except KeyError:
