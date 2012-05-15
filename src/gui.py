@@ -5,8 +5,60 @@ gui.py: This is the graphical user interface.
 """
 
 import gtk
+import gobject
 
 import config
+
+class ExtendedView(gtk.ScrolledWindow):
+
+  __gsignals__ = {
+          'row-selected' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
+           (gobject.TYPE_OBJECT,)),
+          'row-extended' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
+           ())
+  }
+
+  def __init__(self, *types):
+    gtk.ScrolledWindow.__init__(self)
+    self.store = gtk.ListStore(*types)
+    self.store_end_iter = None
+    # create scrollable list view
+    self.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+    self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+    self.view = gtk.TreeView(self.store)
+    self.view.set_rules_hint(True)
+    self.view.connect('row-activated', self.row_activated)
+    self.add(self.view)
+
+  def add_column(self, title, text_index):
+    rt = gtk.CellRendererText()
+    column = gtk.TreeViewColumn(title, rt, text=text_index)
+    column.set_expand(True)
+    column.set_resizable(True)
+    self.view.append_column(column)
+
+  def set_column_title(self, index, title):
+    self.view.get_column(index).set_title(title)
+
+  def append(self, row, extender=False):
+    it = self.store.append(row)
+    if extender:
+      self.store_end_iter = it
+
+  def clear(self):
+    self.store.clear()
+    self.store_end_iter = None
+
+  def row_activated(self, view, path, col):
+    if self.store_end_iter != None and self.store.get_path(self.store_end_iter) == path:
+      self.store.remove(self.store_end_iter)
+      self.emit('row-extended')
+    else:
+      row = self.store[path]
+      values = []
+      self.emit('row-selected', path)
+
+gobject.type_register(ExtendedView)
 
 class FreqGUI():
   def __init__(self, db, listsize):
@@ -21,6 +73,16 @@ class FreqGUI():
     self.update()
     self.window.show_all()
 
+  def create_layouts(self):
+#TODO
+    self.windows = []
+    for i in range(2):
+      self.sentence_window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+      self.sentence_window.connect('delete_event', self.delete_event)
+      self.sentence_window.set_default_size(800, 600)
+      self.sentence_window.set_title('Sentence Browser')
+      self.sentence_window.set_border_width(5)
+
   def create_sentence_layout(self):
     # sentence window
     self.sentence_window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -29,41 +91,27 @@ class FreqGUI():
     self.sentence_window.set_title('Sentence Browser')
     self.sentence_window.set_border_width(5)
     # sentences displayed in scrollable list view
-    sw = gtk.ScrolledWindow()
-    sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
-    sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-    self.sentencestore = gtk.ListStore(str)
-    self.sentenceview = gtk.TreeView(self.sentencestore)
-    rt = gtk.CellRendererText()
-    self.sentencecolumn = gtk.TreeViewColumn(u'Sentences', rt, text=0)
-    self.sentencecolumn.set_expand(True)
-    self.sentenceview.append_column(self.sentencecolumn)
-    self.sentenceview.set_rules_hint(True)
-    self.sentenceview.connect('row-activated', self.list_select)
-    sw.add(self.sentenceview)
-    self.sentence_window.add(sw)
+    self.sentenceview = ExtendedView(str)
+    self.sentenceview.add_column(u'Sentences', 0)
+    self.sentenceview.connect('row-extended', self.load_sentences)
+    self.sentence_window.add(self.sentenceview)
 
-  def fill_sentences(self, row):
+  def display_sentences(self, row):
     values = []
     for i in range(1, len(row)):
       values.append(row[i].decode('utf-8'))
-    self.sentencecolumn.set_title(u'Sentences for %s' % ','.join(values))
+    self.sentenceview.set_column_title(0, u'Sentences for %s' % ','.join(values))
     sentences = self.database.select_sentences(values)
-    self.sentencestore.clear()
-    self.sentencestoreend = None
+    self.sentenceview.clear()
     self.load_sentences()
     self.sentence_window.show_all()
 
   def load_sentences(self):
     results = self.database.select_sentences_results(self.listsize)
-    self.sentenceview.hide()
     for r in results:
-      self.sentencestore.append((r[0],))
+      self.sentenceview.append((r[0],))
     if len(results) >= self.listsize:
-      self.sentencestoreend = self.sentencestore.append((u'Load more…',))
-    else:
-      self.sentencestoreend = None
-    self.sentenceview.show()
+      self.sentenceview.append((u'Load more…',), True)
 
   def create_layout(self):
     # main window
@@ -74,21 +122,19 @@ class FreqGUI():
     self.window.set_title('Frequency Browser')
     self.window.set_border_width(5)
     # words displayed in scrollable list view
-    sw = gtk.ScrolledWindow()
-    sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
-    sw.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-    self.store = gtk.ListStore(float, str, *([str]*config.mecab_fields))
-    self.view = gtk.TreeView(self.store)
-    self.add_columns(self.view)
-    self.view.set_rules_hint(True)
-    self.view.connect('row-activated', self.list_select)
-    sw.add(self.view)
+    self.view = ExtendedView(float, str, *([str]*config.mecab_fields))
+    self.view.add_column(u'Frequency (%)', 0)
+    self.view.add_column(u'Word', 1)
+    for i in range(config.mecab_fields):
+      self.view.add_column(u'POS' + unicode(i + 1), i + 2)
+    self.view.connect('row-selected', self.display_sentences)
+    self.view.connect('row-extended', self.load_words)
     # split with selection boxes, word list and status bar
     topbox = gtk.VBox(False, 10)
     hbox = gtk.HBox(True, 10)
     self.status = gtk.Statusbar()
     topbox.pack_start(hbox, False, False)
-    topbox.pack_start(sw, True, True)
+    topbox.pack_start(self.view, True, True)
     topbox.pack_start(self.status, False, False)
     self.window.add(topbox)
     # create selection vars
@@ -159,53 +205,29 @@ class FreqGUI():
     self.update_mode = False
 
   def update_list(self):
-    self.dsum = 0
-    self.storeend = None
     result = self.database.select(self.word, self.posvalues)
+    self.dsum = 0
     self.fsum = result[0]
     rows = result[1]
-    self.view.hide()
     self.status.push(0, u'Query matches %s unique words appearing a total of %s times.' % (rows, self.fsum))
-    self.store.clear()
-    self.load_list()
-    self.view.show()
 
-  def load_list(self):
+    self.view.clear()
+    self.load_words(self.view)
+
+  def load_words(self, view):
     results = self.database.select_results(self.listsize)
-    self.view.hide()
     for r in results:
       rl = list(r)
       self.dsum = self.dsum + r[0] 
       if not self.freqmode:
         rl[0] = 100.00 * rl[0] / self.fsum
-      self.store.append(rl)
+      view.append(rl)
     if len(results) >= self.listsize:
       remaining = self.fsum - self.dsum
       if not self.freqmode:
         remaining = 100.00 * remaining / self.fsum
-      self.storeend = self.store.append([remaining, u'Load more…'] + [u'']*config.mecab_fields)
-    else:
-      self.storeend = None
-    self.view.show()
+      view.append([remaining, u'Load more…'] + [u'']*config.mecab_fields, True)
 
-  """ add header columns to view """
-  def add_columns(self, view):
-    rt = gtk.CellRendererText()
-    self.freqcolumn = gtk.TreeViewColumn(u'Frequency (%)', rt, text=0)
-    self.freqcolumn.set_expand(True)
-    view.append_column(self.freqcolumn)
-
-    rt = gtk.CellRendererText()
-    column = gtk.TreeViewColumn(u'Word', rt, text=1)
-    column.set_expand(True)
-    view.append_column(column)
-    
-    for i in range(config.mecab_fields):
-      rt = gtk.CellRendererText()
-      column = gtk.TreeViewColumn(u'POS' + unicode(i + 1), rt, text=(i + 2))
-      column.set_expand(True)
-      view.append_column(column)
-  
   def delete_event(self, window, event, data=None):
     if window == self.sentence_window:
       # just hide sentence window
@@ -220,8 +242,6 @@ class FreqGUI():
 
   def update(self, starter=0):
     if not self.update_mode: # to prevent recursive updates
-      # important to first update selections so db cursor
-      # for the list is preserved
       self.update_selections(starter)
       self.update_list()
 
@@ -233,9 +253,9 @@ class FreqGUI():
     index = freqbox.get_active()
     self.freqmode = freqbox.get_active()
     if self.freqmode:
-      self.freqcolumn.set_title(u'Frequency (#)')
+      self.view.set_column_title(0, u'Frequency (#)')
     else:
-      self.freqcolumn.set_title(u'Frequency (%)')
+      self.view.set_column_title(0, u'Frequency (%)')
     self.update()
 
   def changed_pos(self, combobox, number):
@@ -243,22 +263,6 @@ class FreqGUI():
       index = combobox.get_active()
       self.posvalues[number] = self.pos_stores[number][index][0].decode('utf-8')
       self.update(number)
-
-  def list_select(self, view, row, col):
-    if view == self.view:
-      row = self.store[row]
-      text = row[1].decode('utf-8')
-      if self.storeend != None and self.store.get_value(self.storeend, 1) == text:
-        self.store.remove(self.storeend)
-        self.load_list()
-      else:
-        self.fill_sentences(row)
-    elif view == self.sentenceview:
-      row = self.sentencestore[row]
-      text = row[0].decode('utf-8')
-      if self.sentencestoreend != None and self.sentencestore.get_value(self.sentencestoreend, 0) == text:
-        self.sentencestore.remove(self.sentencestoreend)
-        self.load_sentences()
 
   def show(self):
     gtk.main()
