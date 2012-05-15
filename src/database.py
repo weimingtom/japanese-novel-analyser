@@ -17,7 +17,9 @@ class Database():
 
   def __init__(self, filename, tablename):
     self.filename = filename
-    self.tablename = tablename
+    self.freq_table = tablename + '_freqs'
+    self.sentence_table = tablename + '_sentences'
+    self.link_table = tablename + '_links'
     self.fields = config.mecab_fields + 1
     self.fieldnames = [u'word']
     for i in range(config.mecab_fields):
@@ -26,39 +28,71 @@ class Database():
   def __enter__(self):
     logger.out('connecting to database')
     self.conn = sqlite3.connect(self.filename)
-    self.c = self.conn.cursor()
+    self.c = self.conn.cursor() # Cursor for frequences
+    self.c2 = self.conn.cursor() # Cursor for sentences
+    self.c3 = self.conn.cursor() # Cursor for selections
     self.create_table()
     self.prepare_queries()
 
   def create_table(self):
-    # TODO: use custom tablename if possible
-    sql_create = u'CREATE TABLE IF NOT EXISTS %s (freq INTEGER' % self.tablename
+    # create freq table
+    sql_create = u'CREATE TABLE IF NOT EXISTS %s ( \
+        wid INTEGER PRIMARY KEY, freq INTEGER' % self.freq_table
     for i in range(self.fields):
       sql_create = sql_create + u', ' + self.fieldnames[i] + u' TEXT'
-    sql_create = sql_create + u', PRIMARY KEY ('
+    sql_create = sql_create + u', UNIQUE ('
     for i in range(self.fields):
       sql_create = sql_create + self.fieldnames[i] + u', '
     sql_create = sql_create.rstrip(u', ')
     sql_create = sql_create + u'))'
     self.c.execute(sql_create)
+    # create sentence table
+    sql_create = u'CREATE TABLE IF NOT EXISTS %s ( \
+        sid INTEGER PRIMARY KEY, sentence TEXT, len INTEGER)' % self.sentence_table
+    self.c.execute(sql_create)
+    # create link table
+    sql_create = u'CREATE TABLE IF NOT EXISTS %s ( \
+        wid INTEGER, sid INTEGER, \
+        FOREIGN KEY(wid) REFERENCES %s(wid), \
+        FOREIGN KEY(sid) REFERENCES %s(sid))'\
+        % (self.link_table, self.freq_table, self.sentence_table)
+    self.c.execute(sql_create)
     self.conn.commit()
 
   def prepare_queries(self):
-    self.sql_up = u'UPDATE %s SET freq=freq + 1 WHERE ' % self.tablename
-    self.sql_in = u'INSERT INTO %s VALUES (1' % self.tablename
+    self.sql_sel = u'SELECT wid FROM %s WHERE ' % self.freq_table
+    self.sql_up = u'UPDATE %s SET freq=freq + 1 WHERE wid = ?' % self.freq_table
+    self.sql_in = u'INSERT INTO %s VALUES (NULL, 1' % self.freq_table
     for i in range(self.fields):
-      self.sql_up = self.sql_up + self.fieldnames[i] + u'=? AND '
+      self.sql_sel = self.sql_sel + self.fieldnames[i] + u'=? AND '
       self.sql_in = self.sql_in + u', ?'
-    self.sql_up = self.sql_up.rstrip(u' AND')
+    self.sql_sel = self.sql_sel.rstrip(u' AND')
     self.sql_in = self.sql_in + u')'
 
-  def insert_data(self, fieldvalues):
-    self.c.execute(self.sql_up, fieldvalues)
-    if self.c.rowcount == 0: # key does not exist, insert
+  def insert_word(self, fieldvalues, sentence):
+    self.c.execute(self.sql_sel, fieldvalues)
+    row = self.c.fetchone()
+    if row == None: # key does not exist, insert
       self.c.execute(self.sql_in, fieldvalues)
+      return self.c.lastrowid
+    else: # update
+      wid = row[0]
+      self.c.execute(self.sql_up, (wid,))
+      return wid
+  
+  def insert_sentence(self, sentence):
+    sql = u'INSERT INTO %s VALUES (NULL, ?, ?)' % self.sentence_table
+    self.c.execute(sql, (sentence,len(sentence)))
+    return self.c.lastrowid
+
+  def insert_link(self, word_id, sentence_id):
+    sql = u'INSERT INTO %s VALUES (?, ?)' % self.link_table
+    self.c.execute(sql, (word_id, sentence_id))
 
   def clear_table(self):
-    self.c.execute(u'DELETE FROM %s' % self.tablename)
+    self.c.execute(u'DELETE FROM %s' % self.freq_table)
+    self.c.execute(u'DELETE FROM %s' % self.sentence_table)
+    self.c.execute(u'DELETE FROM %s' % self.link_table)
     self.conn.commit()
 
   """
@@ -75,6 +109,16 @@ class Database():
     result = self.c.fetchone()
     self.c.execute(sql, vals)
     return result # (fsum, rows)
+  
+  def select_sentences(self, fieldvalues):
+    sql = u'SELECT DISTINCT sentence FROM %s NATURAL JOIN %s NATURAL JOIN %s'\
+        % (self.freq_table, self.link_table, self.sentence_table)
+    (sql_w, vals) = self.where_query(fieldvalues)
+    sql = sql + sql_w + '\nORDER BY len ASC'
+    self.c2.execute(sql, vals)
+
+  def select_sentences_results(self, amount):
+    return self.c2.fetchmany(amount)
 
   def select_results(self, amount):
     return self.c.fetchmany(amount)
@@ -82,8 +126,9 @@ class Database():
   def select_options_query(self, fieldvalues, i):
     assert i >= 0 and i < self.fields
     sql = u'SELECT DISTINCT ' + self.fieldnames[i]
-    (sql_fw, vals) = self.fromwhere_query(fieldvalues, i)
-    sql = sql + sql_fw
+    sql = sql + u'\nFROM %s ' % self.freq_table
+    (sql_w, vals) = self.where_query(fieldvalues, i)
+    sql = sql + sql_w
     sql = sql + u'\nORDER BY ' + self.fieldnames[i] + u' ASC'
     return (sql, vals)
 
@@ -91,17 +136,17 @@ class Database():
     fieldvalues = [word] + pos
     options = []
     (sql, vals) = self.select_options_query(fieldvalues, index + 1)
-    self.c.execute(sql, vals)
-    result = self.c.fetchall()
+    self.c3.execute(sql, vals)
+    result = self.c3.fetchall()
     for r in result:
       if r[0] != ALL:
         options.append(r[0])
     return options
 
-  """ create the FROM WHERE part of the query """
-  def fromwhere_query(self, fieldvalues, exclude=-1):
+  """ create the WHERE part of the query """
+  def where_query(self, fieldvalues, exclude=-1):
     vals = []
-    sql = u'\nFROM %s \nWHERE ' % self.tablename
+    sql = '\nWHERE '
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE and fieldvalues[i] != ALL \
           and fieldvalues[i] != u'' and exclude != i:
@@ -121,10 +166,11 @@ class Database():
         sql = sql + u', ' + self.fieldnames[i]
       else:
         sql = sql + u', "' + IGNORE + u'"'
-    # add FROM WHERE query
-    (sql_fw, vals) = self.fromwhere_query(fieldvalues)
-    sql = sql + sql_fw
-    sql_sum = sql_sum + sql_fw
+    # add FROM and WHERE part
+    sql_f = u'\nFROM %s ' % self.freq_table
+    (sql_w, vals) = self.where_query(fieldvalues)
+    sql = sql + sql_f + sql_w
+    sql_sum = sql_sum + sql_f + sql_w
     # add grouping options
     sql = sql + u'\nGROUP BY '
     for i in range(self.fields):

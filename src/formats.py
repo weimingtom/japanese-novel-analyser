@@ -85,6 +85,8 @@ class AozoraFormat(Format):
     # remove furigana
     line = re.sub(ur'《.*?》', u'', line);
     line = re.sub(ur'｜', u'', line);
+    # remove whitespace
+    line = line.strip()
     return line
 
   def replace_gaiji(self, gaiji_match):
@@ -113,5 +115,7 @@ class HtmlFormat(Format):
     line = re.sub(ur'<.*?>', u'', line);
     # remove furigana
     line = re.sub(ur'（.*?）', u'', line);
+    # remove whitespace
+    line = line.strip()
     return line
 

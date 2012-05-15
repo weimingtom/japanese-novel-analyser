@@ -16,23 +16,39 @@ class PyMeCab():
     self.tagger = MeCab.Tagger('')
     self.fields = config.mecab_fields
 
-  def parse(self, line):
+  def parse(self, line, db):
     node = self.tagger.parseToNode(line.encode('utf-8'))
-    data = []
     while node:
-      if node.stat == 0 or node.stat == 1: # MECAB_NOR_NODE or MECAB_UNK_NODE
+      if node.stat == MeCab.MECAB_BOS_NODE:
+        sentence = ''
+        data = []
+      elif node.stat == MeCab.MECAB_NOR_NODE or node.stat == MeCab.MECAB_UNK_NODE:
         try:
-          word = node.surface.decode('utf-8')
+          root = word = node.surface.decode('utf-8')
           fields = node.feature.decode('utf-8').split(',')
           # get part-of-speech features 
           pos = fields[0:self.fields]
           if fields[6] != u'*': # take root
-            word = fields[6] 
-          fieldvalues = [word] + pos
+            root = fields[6] 
+          fieldvalues = [root] + pos
+          sentence = sentence + word
           data.append(fieldvalues)
+          if pos[0] == u'記号' and pos[1] == u'句点':
+            # TODO: better end of sentence detection
+            self.insert(data, sentence, db)
+            sentence = u''
+            data = []
         except UnicodeDecodeError as e:
           logger.err('could not decode %s' % node.surface)
-      # else MECAB_BOS_NODE or MECAB_EOS_NOD, ignore
+      elif node.stat == MeCab.MECAB_EOS_NODE:
+        self.insert(data, sentence, db)
       node = node.next
-    return data
+
+  def insert(self, data, sentence, db):
+    if sentence != '':
+      sid = db.insert_sentence(sentence)
+    for fieldvalues in data:
+      wid = db.insert_word(fieldvalues, sentence)
+      assert wid > 0 and sid > 0
+      db.insert_link(wid, sid)
 

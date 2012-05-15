@@ -127,11 +127,9 @@ def analyze(filename, formatter, parser, encoding, output, db):
     with fp:
       for line in fp:
         trimmed_line = formatter.trim(line)
-        mecab_data = parser.parse(trimmed_line)
+        mecab_data = parser.parse(trimmed_line, db)
         if output:
           output.write(trimmed_line.encode('utf-8'))
-        for word_data in mecab_data:
-          db.insert_data(word_data)
 
 if __name__ == '__main__':
   main()
