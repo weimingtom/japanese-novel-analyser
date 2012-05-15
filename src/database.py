@@ -15,8 +15,9 @@ in its place and provide access to it
 """
 class Database():
 
-  def __init__(self, filename):
+  def __init__(self, filename, tablename):
     self.filename = filename
+    self.tablename = tablename
     self.fields = config.mecab_fields + 1
     self.fieldnames = [u'word']
     for i in range(config.mecab_fields):
@@ -31,7 +32,7 @@ class Database():
 
   def create_table(self):
     # TODO: use custom tablename if possible
-    sql_create = u'CREATE TABLE IF NOT EXISTS %s (freq INTEGER' % config.tablename
+    sql_create = u'CREATE TABLE IF NOT EXISTS %s (freq INTEGER' % self.tablename
     for i in range(self.fields):
       sql_create = sql_create + u', ' + self.fieldnames[i] + u' TEXT'
     sql_create = sql_create + u', PRIMARY KEY ('
@@ -43,8 +44,8 @@ class Database():
     self.conn.commit()
 
   def prepare_queries(self):
-    self.sql_up = u'UPDATE %s SET freq=freq + 1 WHERE ' % config.tablename
-    self.sql_in = u'INSERT INTO %s VALUES (1' % config.tablename
+    self.sql_up = u'UPDATE %s SET freq=freq + 1 WHERE ' % self.tablename
+    self.sql_in = u'INSERT INTO %s VALUES (1' % self.tablename
     for i in range(self.fields):
       self.sql_up = self.sql_up + self.fieldnames[i] + u'=? AND '
       self.sql_in = self.sql_in + u', ?'
@@ -57,7 +58,7 @@ class Database():
       self.c.execute(self.sql_in, fieldvalues)
 
   def clear_table(self):
-    self.c.execute(u'DELETE FROM %s' % config.tablename)
+    self.c.execute(u'DELETE FROM %s' % self.tablename)
     self.conn.commit()
 
   """
@@ -100,7 +101,7 @@ class Database():
   """ create the FROM WHERE part of the query """
   def fromwhere_query(self, fieldvalues, exclude=-1):
     vals = []
-    sql = u'\nFROM %s \nWHERE ' % config.tablename
+    sql = u'\nFROM %s \nWHERE ' % self.tablename
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE and fieldvalues[i] != ALL \
           and fieldvalues[i] != u'' and exclude != i:

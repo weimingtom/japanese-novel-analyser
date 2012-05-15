@@ -26,6 +26,7 @@ import getopt
 import codecs
 import os.path
 import sqlite3
+import re
 
 import formats
 import mecab
@@ -76,6 +77,9 @@ def main():
       clear = True
     if o in ('-t', '--tablename'):
       tablename = a
+      if not re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', tablename):
+        logger.err('invalid table name: %s' % tablename)
+        sys.exit(2)
     if o in ('-r', '--recursive'):
       recursive = True
   # create formatter and parser
@@ -88,7 +92,7 @@ def main():
   parser = mecab.PyMeCab()
   try:
     dbfile = os.path.join(basedir, config.dbfile)
-    db = database.Database(dbfile)
+    db = database.Database(dbfile, tablename)
     with db:
       if clear:
         db.clear_table()
