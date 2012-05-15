@@ -5,7 +5,7 @@ This is the Japanese Novel Analyser.
 It reads in novels from files in aozora formatting, strips this formatting,
 invokes the mecab morphological analysis and counts word frequencies.
 Then it stores them in a database for later use. Repeated invokations
-add to the existing frequencies, unless the switch --resetdb is given.
+add to the existing frequencies, unless the switch --cleartable is given.
 
 Usage: analyser.py [OPTION]... FILE..
 Read and analyse each FILE.
@@ -14,10 +14,11 @@ Options:
   -h, --help          Display this help
   -e, --encoding=ENC  Set the encoding for the files to ENC
   -r, --recursive     Read files in all folders recursively
+  -t, --tablename     Table to use (will be created if not existing)
   -f, --format=FORMAT Set the format of the files;
                       FORMAT is  'plain', 'aozora' or 'html`
   -o, --output=FILE   Write cleaned up up input file to FILE
-      --resetdb       Reset database before filling it
+  -c, --cleartable    Clear table before filling it
 """
 
 import sys
@@ -38,7 +39,7 @@ def main():
   basedir = config.get_basedir()
   # parse command line options
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:r', ['help','format=','encoding=', 'output=', 'resetdb', 'recursive'])
+    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:rct:', ['help','format=','encoding=', 'output=', 'cleartable', 'recursive', 'tablename='])
   except getopt.error as opterr:
     logger.err(opterr)
     logger.err('for help use --help')
@@ -47,7 +48,8 @@ def main():
   formatter = config.formatter
   encoding = config.encoding
   output = config.output
-  reset = False
+  tablename = config.tablename
+  clear = False
   recursive = False
   for o, a in opts:
     if o in ('-h', '--help'):
@@ -70,8 +72,10 @@ def main():
         output = open(a, 'w')
       except IOError as e:
         logger.err('error opening %s: %s' % (a, e))
-    if o in ('--resetdb'):
-      reset = True
+    if o in ('-c', '--cleartable'):
+      clear = True
+    if o in ('-t', '--tablename'):
+      tablename = a
     if o in ('-r', '--recursive'):
       recursive = True
   # create formatter and parser
@@ -86,7 +90,7 @@ def main():
     dbfile = os.path.join(basedir, config.dbfile)
     db = database.Database(dbfile)
     with db:
-      if reset:
+      if clear:
         db.clear_table()
         logger.out('cleared database table')
       # process files

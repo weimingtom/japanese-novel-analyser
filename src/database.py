@@ -31,7 +31,7 @@ class Database():
 
   def create_table(self):
     # TODO: use custom tablename if possible
-    sql_create = u'CREATE TABLE IF NOT EXISTS freqs (freq INTEGER'
+    sql_create = u'CREATE TABLE IF NOT EXISTS %s (freq INTEGER' % config.tablename
     for i in range(self.fields):
       sql_create = sql_create + u', ' + self.fieldnames[i] + u' TEXT'
     sql_create = sql_create + u', PRIMARY KEY ('
@@ -43,8 +43,8 @@ class Database():
     self.conn.commit()
 
   def prepare_queries(self):
-    self.sql_up = u'UPDATE freqs SET freq=freq + 1 WHERE '
-    self.sql_in = u'INSERT INTO freqs VALUES (1'
+    self.sql_up = u'UPDATE %s SET freq=freq + 1 WHERE ' % config.tablename
+    self.sql_in = u'INSERT INTO %s VALUES (1' % config.tablename
     for i in range(self.fields):
       self.sql_up = self.sql_up + self.fieldnames[i] + u'=? AND '
       self.sql_in = self.sql_in + u', ?'
@@ -57,7 +57,7 @@ class Database():
       self.c.execute(self.sql_in, fieldvalues)
 
   def clear_table(self):
-    self.c.execute(u'DELETE FROM freqs')
+    self.c.execute(u'DELETE FROM %s' % config.tablename)
     self.conn.commit()
 
   """
@@ -86,26 +86,21 @@ class Database():
     sql = sql + u'\nORDER BY ' + self.fieldnames[i] + u' ASC'
     return (sql, vals)
 
-  def select_options(self, word, pos):
+  def select_options(self, word, pos, index):
     fieldvalues = [word] + pos
-    all_options = []
-    for i in range(1, self.fields): # exclude word from options
-      options = []
-      options.append(ALL)
-      options.append(IGNORE)
-      (sql, vals) = self.select_options_query(fieldvalues, i)
-      self.c.execute(sql, vals)
-      result = self.c.fetchall()
-      for r in result:
-        if r[0] != ALL:
-          options.append(r[0])
-      all_options.append(options)
-    return all_options
+    options = []
+    (sql, vals) = self.select_options_query(fieldvalues, index + 1)
+    self.c.execute(sql, vals)
+    result = self.c.fetchall()
+    for r in result:
+      if r[0] != ALL:
+        options.append(r[0])
+    return options
 
   """ create the FROM WHERE part of the query """
   def fromwhere_query(self, fieldvalues, exclude=-1):
     vals = []
-    sql = u'\nFROM freqs\nWHERE '
+    sql = u'\nFROM %s \nWHERE ' % config.tablename
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE and fieldvalues[i] != ALL \
           and fieldvalues[i] != u'' and exclude != i:
@@ -117,8 +112,8 @@ class Database():
 
   """ create the query for frequency selection """
   def select_query(self, fieldvalues):
-    sql_sum = u'SELECT sum(freq), count(freq)'
-    sql = u'SELECT sum(freq)'
+    sql_sum = u'SELECT sum(freq) as fsum, count(freq)'
+    sql = u'SELECT sum(freq) as fsum'
     # add displayed fields
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE:
@@ -137,7 +132,7 @@ class Database():
     sql = sql.rstrip(u', ')
     sql = sql.rstrip(u'\nGROUP BY ')
     # add ordering
-    sql = sql + u'\nORDER BY sum(freq) DESC'
+    sql = sql + u'\nORDER BY fsum DESC'
     return (sql, sql_sum, vals)
   
   def __exit__(self, typ, value, traceback):

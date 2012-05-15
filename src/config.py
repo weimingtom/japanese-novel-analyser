@@ -14,6 +14,7 @@ formatter = 'aozora'
 encoding  = 'utf-8'
 output    = None
 dbfile    = 'data/freqs.db'
+tablename = 'freqs'
 #gaijifile ='data/gaiji_codes'
 gaijifile ='data/jisx0213-2004-8bit-std.txt'
 mecab_fields = 6 # mecab pos fields, should not change
