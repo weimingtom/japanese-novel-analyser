@@ -102,20 +102,3 @@ class AozoraFormat(Format):
       logger.err('found gaiji with no equivalent: %s' % gaiji_match.group(0))
       return u''
 
-"""
-This formatter takes texts with HTML tags and removes them.
-"""
-class HtmlFormat(Format):
-  def __init__(self, basedir):
-    super(HtmlFormat, self).__init__()
-
-  def trim(self, line):
-    Format.trim(self, line)
-    # remove tags
-    line = re.sub(ur'<.*?>', u'', line);
-    # remove furigana
-    line = re.sub(ur'（.*?）', u'', line);
-    # remove whitespace
-    line = line.strip()
-    return line
-
