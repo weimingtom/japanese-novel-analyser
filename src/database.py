@@ -110,12 +110,11 @@ class Database():
     self.c.execute(sql, vals)
     return result # (fsum, rows)
   
-  def select_sentences(self, fieldvalues):
-    sql = u'SELECT DISTINCT sentence FROM %s NATURAL JOIN %s NATURAL JOIN %s'\
+  def select_sentences(self, wid):
+    sql = u'SELECT DISTINCT sentence FROM %s NATURAL JOIN %s NATURAL JOIN %s\
+            WHERE wid = ?'\
         % (self.freq_table, self.link_table, self.sentence_table)
-    (sql_w, vals) = self.where_query(fieldvalues)
-    sql = sql + sql_w + '\nORDER BY len ASC'
-    self.c2.execute(sql, vals)
+    self.c2.execute(sql, (wid,))
 
   def select_sentences_results(self, amount):
     return self.c2.fetchmany(amount)
@@ -159,7 +158,7 @@ class Database():
   """ create the query for frequency selection """
   def select_query(self, fieldvalues):
     sql_sum = u'SELECT sum(freq) as fsum, count(freq)'
-    sql = u'SELECT sum(freq) as fsum'
+    sql = u'SELECT wid, sum(freq) as fsum'
     # add displayed fields
     for i in range(self.fields):
       if fieldvalues[i] != IGNORE:

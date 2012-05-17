@@ -13,7 +13,7 @@ class ExtendedView(gtk.ScrolledWindow):
 
   __gsignals__ = {
           'row-selected' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
-           (gobject.TYPE_OBJECT,)),
+           (int,)),
           'row-extended' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
            ())
   }
@@ -37,6 +37,9 @@ class ExtendedView(gtk.ScrolledWindow):
     column.set_resizable(True)
     self.view.append_column(column)
 
+  def get_row(self, index):
+    return self.store[index]
+
   def set_column_title(self, index, title):
     self.view.get_column(index).set_title(title)
 
@@ -55,8 +58,7 @@ class ExtendedView(gtk.ScrolledWindow):
       self.emit('row-extended')
     else:
       row = self.store[path]
-      values = []
-      self.emit('row-selected', path)
+      self.emit('row-selected', path[0])
 
 gobject.type_register(ExtendedView)
 
@@ -64,6 +66,7 @@ class FreqGUI():
   def __init__(self, db, listsize):
     self.database = db
     self.listsize = listsize
+    self.wordstore = []
     self.freqmode = 0
     self.word = u''
     self.posvalues = [config.ALL]*config.mecab_fields
@@ -74,7 +77,7 @@ class FreqGUI():
     self.window.show_all()
 
   def create_layouts(self):
-#TODO
+    #TODO: Unify window code
     self.windows = []
     for i in range(2):
       self.sentence_window = gtk.Window(gtk.WINDOW_TOPLEVEL)
@@ -96,22 +99,23 @@ class FreqGUI():
     self.sentenceview.connect('row-extended', self.load_sentences)
     self.sentence_window.add(self.sentenceview)
 
-  def display_sentences(self, row):
-    values = []
-    for i in range(1, len(row)):
-      values.append(row[i].decode('utf-8'))
-    self.sentenceview.set_column_title(0, u'Sentences for %s' % ','.join(values))
-    sentences = self.database.select_sentences(values)
+  def display_sentences(self, view, index):
+    wid = self.viewstore[index][0]
+    #values = []
+    #for i in range(1, len(row)):
+    #  values.append(row[i].decode('utf-8'))
+    #self.sentenceview.set_column_title(0, u'Sentences for %s' % ','.join(values))
+    sentences = self.database.select_sentences(wid)
     self.sentenceview.clear()
-    self.load_sentences()
+    self.load_sentences(self.sentenceview)
     self.sentence_window.show_all()
 
-  def load_sentences(self):
+  def load_sentences(self, view):
     results = self.database.select_sentences_results(self.listsize)
     for r in results:
-      self.sentenceview.append((r[0],))
+      view.append((r[0],))
     if len(results) >= self.listsize:
-      self.sentenceview.append((u'Load more…',), True)
+      view.append((u'Load more…',), True)
 
   def create_layout(self):
     # main window
@@ -212,16 +216,18 @@ class FreqGUI():
     self.status.push(0, u'Query matches %s unique words appearing a total of %s times.' % (rows, self.fsum))
 
     self.view.clear()
+    self.viewstore = []
     self.load_words(self.view)
 
   def load_words(self, view):
     results = self.database.select_results(self.listsize)
     for r in results:
-      rl = list(r)
-      self.dsum = self.dsum + r[0] 
+      rl = list(r)[1:]
+      self.dsum = self.dsum + rl[0] 
       if not self.freqmode:
         rl[0] = 100.00 * rl[0] / self.fsum
       view.append(rl)
+      self.viewstore.append(r)
     if len(results) >= self.listsize:
       remaining = self.fsum - self.dsum
       if not self.freqmode:

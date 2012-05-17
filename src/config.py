@@ -16,7 +16,7 @@ output    = None
 dbfile    = 'data/freqs.db'
 tablename = 'main'
 gaijifile ='data/jisx0213-2004-8bit-std.txt'
-mecab_fields = 6 # mecab pos fields, should not change
+mecab_fields = 5 # mecab pos fields, should not change
 list_number = 100 # number of items to display in list
 
 def get_basedir():

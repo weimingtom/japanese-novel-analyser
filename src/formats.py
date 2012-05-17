@@ -77,9 +77,9 @@ class AozoraFormat(Format):
     #line = re.sub(ur'※?［＃.*?(?P<GaijiCode>\d\-\d{1,2}\-\d{1,2})］', self.replace_gaiji, line)
     line = re.sub(ur'※?［＃.*?(?P<JisPlane>\d)\-(?P<JisRow>\d{1,2})\-(?P<JisCol>\d{1,2})］', self.replace_gaiji, line)
     # handle the alteration mark
-    line = re.sub(ur'※［＃歌記号］', u'〽', line);
+    line = re.sub(ur'※?［＃歌記号］', u'〽', line);
     # remove other Aozora constructs
-    line = re.sub(ur'［＃.*?］', u'', line);
+    line = re.sub(ur'※?［＃.*?］', u'', line);
     # remove HTML
     line = re.sub(ur'<.*?>', u'', line);
     # remove furigana
