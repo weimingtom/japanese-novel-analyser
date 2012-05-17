@@ -31,7 +31,6 @@ class Database():
     self.c = self.conn.cursor() # Cursor for frequences
     self.c2 = self.conn.cursor() # Cursor for sentences
     self.c3 = self.conn.cursor() # Cursor for selections
-    self.create_table()
     self.prepare_queries()
 
   def create_table(self):
@@ -90,9 +89,9 @@ class Database():
     self.c.execute(sql, (word_id, sentence_id))
 
   def clear_table(self):
-    self.c.execute(u'DELETE FROM %s' % self.freq_table)
-    self.c.execute(u'DELETE FROM %s' % self.sentence_table)
-    self.c.execute(u'DELETE FROM %s' % self.link_table)
+    self.c.execute(u'DROP TABLE IF EXISTS %s' % self.freq_table)
+    self.c.execute(u'DROP TABLE IF EXISTS %s' % self.sentence_table)
+    self.c.execute(u'DROP TABLE IF EXISTS %s' % self.link_table)
     self.conn.commit()
 
   """

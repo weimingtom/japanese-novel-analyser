@@ -97,6 +97,7 @@ def main():
       if clear:
         db.clear_table()
         logger.out('cleared database table')
+      db.create_table()
       # process files
       logger.out('analyzing text files')
       if recursive:
