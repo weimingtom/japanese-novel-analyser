@@ -68,6 +68,7 @@ class FreqGUI():
     self.listsize = listsize
     self.wordstore = []
     self.freqmode = 0
+    self.select_position = 0
     self.word = u''
     self.posvalues = [config.ALL]*config.mecab_fields
     self.update_mode = False
@@ -182,27 +183,28 @@ class FreqGUI():
       self.pos_boxes.append(cb)
       self.pos_stores.append(store)
 
-  def update_selections(self, starter):
-    #TODO: solve problem for gettting to many selects
+  def update_selections(self):
     self.update_mode = True
     # get valid selections
-    current_sel = 0
-    for i in range(config.mecab_fields):
-      if self.posvalues[i] != config.ALL:
-        current_sel = i + 1
+    for i in range(self.select_position, config.mecab_fields):
+      cb = self.pos_boxes[i]
+      store = self.pos_stores[i]
+      cb.hide()
+      store.clear()
+      store.append(config.ALL)
+      # update next box if needed
+      if i == self.select_position and \
+          (self.select_position == 0 or\
+           self.posvalues[self.select_position - 1] != config.ALL):
+        options = self.database.select_options(self.word, self.posvalues, i)
+        for opt in options:
+          store.append((opt,))
+        cb.set_sensitive(True)
       else:
-        cb = self.pos_boxes[i]
-        store = self.pos_stores[i]
-        cb.hide()
-        store.clear()
-        store.append(config.ALL)
-        if current_sel == i:
-          options = self.database.select_options(self.word, self.posvalues, i)
-          for opt in options:
-            store.append((opt,))
-        if self.posvalues[i] == config.ALL:
-          cb.set_active(0)
-        cb.show()
+        cb.set_sensitive(False)
+      self.posvalues[i] = config.ALL
+      cb.set_active(0)
+      cb.show()
     self.update_mode = False
 
   def update_list(self):
@@ -243,9 +245,9 @@ class FreqGUI():
   def destroy(self, widget, data=None):
     gtk.main_quit()
 
-  def update(self, starter=0):
+  def update(self):
     if not self.update_mode: # to prevent recursive updates
-      self.update_selections(starter)
+      self.update_selections()
       self.update_list()
 
   def changed_word(self, entry):
@@ -263,9 +265,10 @@ class FreqGUI():
 
   def changed_pos(self, combobox, number):
     if not self.update_mode:
+      self.select_position = number + 1
       index = combobox.get_active()
       self.posvalues[number] = self.pos_stores[number][index][0].decode('utf-8')
-      self.update(number)
+      self.update()
 
   def show(self):
     gtk.main()
