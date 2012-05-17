@@ -188,7 +188,7 @@ class FreqGUI():
     # get valid selections
     current_sel = 0
     for i in range(config.mecab_fields):
-      if self.posvalues[i] != config.ALL and self.posvalues[i] != config.IGNORE:
+      if self.posvalues[i] != config.ALL:
         current_sel = i + 1
       else:
         cb = self.pos_boxes[i]
@@ -196,15 +196,12 @@ class FreqGUI():
         cb.hide()
         store.clear()
         store.append(config.ALL)
-        store.append(config.IGNORE)
         if current_sel == i:
           options = self.database.select_options(self.word, self.posvalues, i)
           for opt in options:
             store.append((opt,))
         if self.posvalues[i] == config.ALL:
           cb.set_active(0)
-        elif self.posvalues[i] == config.IGNORE:
-          cb.set_active(1)
         cb.show()
     self.update_mode = False
 

@@ -6,7 +6,7 @@ and performing queries on the data.
 import sqlite3
 
 import config
-from config import ALL, IGNORE
+from config import ALL
 from logger import logger
 
 """
@@ -35,27 +35,30 @@ class Database():
 
   def create_table(self):
     # create freq table
-    sql_create = u'CREATE TABLE IF NOT EXISTS %s ( \
+    sql = u'CREATE TABLE IF NOT EXISTS %s ( \
         wid INTEGER PRIMARY KEY, freq INTEGER' % self.freq_table
     for i in range(self.fields):
-      sql_create = sql_create + u', ' + self.fieldnames[i] + u' TEXT'
-    sql_create = sql_create + u', UNIQUE ('
+      sql = sql + u', ' + self.fieldnames[i] + u' TEXT'
+    sql = sql + u', UNIQUE ('
     for i in range(self.fields):
-      sql_create = sql_create + self.fieldnames[i] + u', '
-    sql_create = sql_create.rstrip(u', ')
-    sql_create = sql_create + u'))'
-    self.c.execute(sql_create)
+      sql = sql + self.fieldnames[i] + u', '
+    sql = sql.rstrip(u', ')
+    sql = sql + u'))'
+    self.c.execute(sql)
     # create sentence table
-    sql_create = u'CREATE TABLE IF NOT EXISTS %s ( \
+    sql = u'CREATE TABLE IF NOT EXISTS %s ( \
         sid INTEGER PRIMARY KEY, sentence TEXT, len INTEGER)' % self.sentence_table
-    self.c.execute(sql_create)
+    self.c.execute(sql)
     # create link table
-    sql_create = u'CREATE TABLE IF NOT EXISTS %s ( \
+    sql = u'CREATE TABLE IF NOT EXISTS %s ( \
         wid INTEGER, sid INTEGER, \
         FOREIGN KEY(wid) REFERENCES %s(wid), \
         FOREIGN KEY(sid) REFERENCES %s(sid))'\
         % (self.link_table, self.freq_table, self.sentence_table)
-    self.c.execute(sql_create)
+    self.c.execute(sql)
+    # create index for freq
+    sql = 'CREATE INDEX IF NOT EXISTS freq_index ON %s (freq DESC)' % self.freq_table
+    self.c.execute(sql)
     self.conn.commit()
 
   def prepare_queries(self):
@@ -97,7 +100,6 @@ class Database():
   """
   Selects frequences from the database. Each parameter can be
   - a specific value: Filters results to this value
-  - be set to IGNORE: Combine all words that are the same on this value
   - be set to *     : No filtering
   Note that word can not be set to group.
   """
@@ -146,7 +148,7 @@ class Database():
     vals = []
     sql = '\nWHERE '
     for i in range(self.fields):
-      if fieldvalues[i] != IGNORE and fieldvalues[i] != ALL \
+      if fieldvalues[i] != ALL \
           and fieldvalues[i] != u'' and exclude != i:
         sql = sql + self.fieldnames[i] + u'=? AND '
         vals.append(fieldvalues[i])
@@ -156,28 +158,18 @@ class Database():
 
   """ create the query for frequency selection """
   def select_query(self, fieldvalues):
-    sql_sum = u'SELECT sum(freq) as fsum, count(freq)'
-    sql = u'SELECT wid, sum(freq) as fsum'
+    sql_sum = u'SELECT sum(freq), count(freq)'
+    sql = u'SELECT wid, freq'
     # add displayed fields
     for i in range(self.fields):
-      if fieldvalues[i] != IGNORE:
-        sql = sql + u', ' + self.fieldnames[i]
-      else:
-        sql = sql + u', "' + IGNORE + u'"'
+      sql = sql + u', ' + self.fieldnames[i]
     # add FROM and WHERE part
     sql_f = u'\nFROM %s ' % self.freq_table
     (sql_w, vals) = self.where_query(fieldvalues)
     sql = sql + sql_f + sql_w
     sql_sum = sql_sum + sql_f + sql_w
-    # add grouping options
-    sql = sql + u'\nGROUP BY '
-    for i in range(self.fields):
-      if fieldvalues[i] != IGNORE:
-        sql = sql + self.fieldnames[i] + u', '
-    sql = sql.rstrip(u', ')
-    sql = sql.rstrip(u'\nGROUP BY ')
     # add ordering
-    sql = sql + u'\nORDER BY fsum DESC'
+    sql = sql + u'\nORDER BY freq DESC'
     return (sql, sql_sum, vals)
   
   def __exit__(self, typ, value, traceback):

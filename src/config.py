@@ -7,8 +7,6 @@ import os.path
 
 # string to use for displaying all entries
 ALL = u'*'
-# string to use for accumulating functionality
-IGNORE = u'#'
   
 formatter = 'aozora'
 encoding  = 'utf-8'
