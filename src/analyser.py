@@ -92,12 +92,8 @@ def main():
   parser = mecab.PyMeCab()
   try:
     dbfile = os.path.join(basedir, config.dbfile)
-    db = database.Database(dbfile, tablename)
+    db = database.Database(dbfile, tablename, clear, True)
     with db:
-      if clear:
-        db.clear_table()
-        logger.out('cleared database table')
-      db.create_table()
       # process files
       logger.out('analyzing text files')
       if recursive:

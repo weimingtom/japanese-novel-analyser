@@ -15,11 +15,13 @@ in its place and provide access to it
 """
 class Database():
 
-  def __init__(self, filename, tablename):
+  def __init__(self, filename, tablename, clear=False, create=False):
     self.filename = filename
     self.freq_table = tablename + '_freqs'
     self.sentence_table = tablename + '_sentences'
     self.link_table = tablename + '_links'
+    self.clear = clear
+    self.create = create
     self.fields = config.mecab_fields + 1
     self.fieldnames = [u'word']
     for i in range(config.mecab_fields):
@@ -31,6 +33,12 @@ class Database():
     self.c = self.conn.cursor() # Cursor for frequences
     self.c2 = self.conn.cursor() # Cursor for sentences
     self.c3 = self.conn.cursor() # Cursor for selections
+    if self.clear:
+      self.clear_table()
+      logger.out('cleared database tables')
+    if self.create:
+      self.create_table()
+      logger.out('created database tables')
     self.prepare_queries()
 
   def create_table(self):
@@ -113,7 +121,8 @@ class Database():
   
   def select_sentences(self, wid):
     sql = u'SELECT DISTINCT sentence FROM %s NATURAL JOIN %s NATURAL JOIN %s\
-            WHERE wid = ?'\
+            WHERE wid = ?\
+            ORDER BY len ASC'\
         % (self.freq_table, self.link_table, self.sentence_table)
     self.c2.execute(sql, (wid,))
 

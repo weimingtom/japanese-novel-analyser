@@ -77,23 +77,17 @@ class FreqGUI():
     self.update()
     self.window.show_all()
 
-  def create_layouts(self):
-    #TODO: Unify window code
-    self.windows = []
-    for i in range(2):
-      self.sentence_window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-      self.sentence_window.connect('delete_event', self.delete_event)
-      self.sentence_window.set_default_size(800, 600)
-      self.sentence_window.set_title('Sentence Browser')
-      self.sentence_window.set_border_width(5)
+  def create_window(self, title):
+    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    window.connect('delete_event', self.delete_event)
+    window.set_default_size(800, 600)
+    window.set_title(title)
+    window.set_border_width(5)
+    return window
 
   def create_sentence_layout(self):
     # sentence window
-    self.sentence_window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-    self.sentence_window.connect('delete_event', self.delete_event)
-    self.sentence_window.set_default_size(800, 600)
-    self.sentence_window.set_title('Sentence Browser')
-    self.sentence_window.set_border_width(5)
+    self.sentence_window = self.create_window('Sentence Browser')
     # sentences displayed in scrollable list view
     self.sentenceview = ExtendedView(str)
     self.sentenceview.add_column(u'Sentences', 0)
@@ -102,10 +96,6 @@ class FreqGUI():
 
   def display_sentences(self, view, index):
     wid = self.viewstore[index][0]
-    #values = []
-    #for i in range(1, len(row)):
-    #  values.append(row[i].decode('utf-8'))
-    #self.sentenceview.set_column_title(0, u'Sentences for %s' % ','.join(values))
     sentences = self.database.select_sentences(wid)
     self.sentenceview.clear()
     self.load_sentences(self.sentenceview)
@@ -120,12 +110,8 @@ class FreqGUI():
 
   def create_layout(self):
     # main window
-    self.window = gtk.Window(gtk.WINDOW_TOPLEVEL)
-    self.window.connect('delete_event', self.delete_event)
+    self.window = self.create_window('Frequency Browser')
     self.window.connect('destroy', self.destroy)
-    self.window.set_default_size(800, 600)
-    self.window.set_title('Frequency Browser')
-    self.window.set_border_width(5)
     # words displayed in scrollable list view
     self.view = ExtendedView(float, str, *([str]*config.mecab_fields))
     self.view.add_column(u'Frequency (%)', 0)
@@ -186,6 +172,10 @@ class FreqGUI():
   def update_selections(self):
     self.update_mode = True
     # get valid selections
+    # reset higher positions
+    for i in range(self.select_position, config.mecab_fields):
+      self.posvalues[i] = config.ALL
+    # update selection boxes
     for i in range(self.select_position, config.mecab_fields):
       cb = self.pos_boxes[i]
       store = self.pos_stores[i]
@@ -202,7 +192,6 @@ class FreqGUI():
         cb.set_sensitive(True)
       else:
         cb.set_sensitive(False)
-      self.posvalues[i] = config.ALL
       cb.set_active(0)
       cb.show()
     self.update_mode = False
