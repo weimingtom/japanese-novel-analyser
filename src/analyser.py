@@ -17,7 +17,6 @@ Options:
   -t, --tablename     Table to use (will be created if not existing)
   -f, --format=FORMAT Set the format of the files;
                       FORMAT is  'plain', 'aozora' or 'html`
-  -o, --output=FILE   Write cleaned up up input file to FILE
   -c, --cleartable    Clear table before filling it
 """
 
@@ -36,11 +35,10 @@ import config
 from logger import logger
 
 def main():
-  # get path of main program directory
   basedir = config.get_basedir()
   # parse command line options
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:rct:', ['help','format=','encoding=', 'output=', 'cleartable', 'recursive', 'tablename='])
+    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:rct:', ['help','format=','encoding=', 'cleartable', 'recursive', 'tablename='])
   except getopt.error as opterr:
     logger.err(opterr)
     logger.err('for help use --help')
@@ -48,7 +46,6 @@ def main():
   # process config and options
   formatter = config.formatter
   encoding = config.encoding
-  output = config.output
   tablename = config.tablename
   clear = False
   recursive = False
@@ -58,7 +55,7 @@ def main():
       sys.exit(0)
     if o in ('-f', '--format'):
       formatter = a
-      if formatter not in ('plain', 'aozora', 'html'):
+      if formatter not in ('plain', 'aozora'):
         logger.err('format not supported: %s' % formatter)
         sys.exit(2)
     if o in ('-e', '--encoding'):
@@ -68,11 +65,6 @@ def main():
       except LookupError:
         logger.err('encoding not found: %s' % encoding)
         sys.exit(2)
-    if o in ('-o', '--output'):
-      try:
-        output = open(a, 'w')
-      except IOError as e:
-        logger.err('error opening %s: %s' % (a, e))
     if o in ('-c', '--cleartable'):
       clear = True
     if o in ('-t', '--tablename'):
@@ -85,11 +77,10 @@ def main():
   # create formatter and parser
   if(formatter == 'aozora'):
     formatter = formats.AozoraFormat(basedir)
-  elif(formatter == 'html'):
-    formatter = formats.HtmlFormat()
   else:
     formatter = formats.Format()
   parser = mecab.PyMeCab()
+  # access database
   try:
     dbfile = os.path.join(basedir, config.dbfile)
     db = database.Database(dbfile, tablename, clear, True)
@@ -98,35 +89,31 @@ def main():
       logger.out('analyzing text files')
       if recursive:
         for dirname in args:
-          for dirpath, dirnames, files in os.walk(dirname):
+          for dirpath, dirs, files in os.walk(dirname):
             logger.out('going through directory %s' % dirpath)
             for filename in files:
-              analyze(os.path.join(dirpath, filename), formatter, parser, encoding, output, db)
+              analyze(os.path.join(dirpath, filename), formatter, parser, encoding, db)
       else:
         for filename in args:
-          analyze(filename, formatter, parser, encoding, output, db)
+          analyze(filename, formatter, parser, encoding, db)
       logger.out('done analyzing')
   except sqlite3.Error as e:
     logger.err('database error: %s' % e)
-  finally:
-    if output:
-      output.close()
 
-def analyze(filename, formatter, parser, encoding, output, db):
+def analyze(filename, formatter, parser, encoding, db):
   logger.out('reading %s' % filename)
   formatter.new_file()
-  # process all files line by line
   try:
     fp = codecs.open(filename, 'r', encoding)
   except IOError as e:
     logger.err('error opening %s: %s' % (filename, e))
   else:
     with fp:
+      # process all files line by line
       for line in fp:
         trimmed_line = formatter.trim(line)
         mecab_data = parser.parse(trimmed_line, db)
-        if output:
-          output.write(trimmed_line.encode('utf-8'))
 
 if __name__ == '__main__':
   main()
+

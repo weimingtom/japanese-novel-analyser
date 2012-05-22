@@ -197,7 +197,7 @@ class FreqGUI():
     self.update_mode = False
 
   def update_list(self):
-    result = self.database.select(self.word, self.posvalues)
+    result = self.database.select_frequencies(self.word, self.posvalues)
     self.dsum = 0
     self.fsum = result[0]
     rows = result[1]
@@ -208,7 +208,7 @@ class FreqGUI():
     self.load_words(self.view)
 
   def load_words(self, view):
-    results = self.database.select_results(self.listsize)
+    results = self.database.select_frequency_results(self.listsize)
     for r in results:
       rl = list(r)[1:]
       self.dsum = self.dsum + rl[0] 

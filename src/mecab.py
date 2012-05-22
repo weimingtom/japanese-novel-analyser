@@ -37,8 +37,9 @@ class PyMeCab():
           fieldvalues = [root] + pos
           sentence = sentence + word
           data.append(fieldvalues)
-          if pos[0] == u'記号' and pos[1] == u'句点':
-            # TODO: better end of sentence detection
+          if pos[0] == u'記号' and pos[1] == u'句点' \
+            or pos[0] == u'記号' and word == u'！' \
+            or pos[0] == u'記号' and word == u'？':
             self.insert(data, sentence, db)
             sentence = u''
             data = []

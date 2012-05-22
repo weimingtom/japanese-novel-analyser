@@ -9,12 +9,12 @@ import config
 from config import ALL
 from logger import logger
 
-"""
-Open a existing database, or otherwise create a new
-in its place and provide access to it
-"""
 class Database():
 
+  """
+  Open the database in filename and use tablename as a table name prefix.
+  Clear tables if clear is True, and (re-)create them if create is True.
+  """
   def __init__(self, filename, tablename, clear=False, create=False):
     self.filename = filename
     self.freq_table = tablename + '_freqs'
@@ -22,6 +22,7 @@ class Database():
     self.link_table = tablename + '_links'
     self.clear = clear
     self.create = create
+    # data fields are the word and the parts of speech
     self.fields = config.mecab_fields + 1
     self.fieldnames = [u'word']
     for i in range(config.mecab_fields):
@@ -30,9 +31,9 @@ class Database():
   def __enter__(self):
     logger.out('connecting to database')
     self.conn = sqlite3.connect(self.filename)
-    self.c = self.conn.cursor() # Cursor for frequences
-    self.c2 = self.conn.cursor() # Cursor for sentences
-    self.c3 = self.conn.cursor() # Cursor for selections
+    self.c = self.conn.cursor() # Cursor for word frequency queries
+    self.c2 = self.conn.cursor() # Cursor for sentence queries
+    self.c3 = self.conn.cursor() # Cursor for option selections
     if self.clear:
       self.clear_table()
       logger.out('cleared database tables')
@@ -64,12 +65,17 @@ class Database():
         FOREIGN KEY(sid) REFERENCES %s(sid))'\
         % (self.link_table, self.freq_table, self.sentence_table)
     self.c.execute(sql)
-    # create index for freq
+    # create indices for faster lookup
     sql = 'CREATE INDEX IF NOT EXISTS freq_index ON %s (freq DESC)' % self.freq_table
+    self.c.execute(sql)
+    sql = 'CREATE INDEX IF NOT EXISTS len_index ON %s (sentences ASC)' % self.sentence_table
+    self.c.execute(sql)
+    jql = 'CREATE INDEX IF NOT EXISTS link_wid_index ON %s (wid ASC)' % self.link_table
     self.c.execute(sql)
     self.conn.commit()
 
   def prepare_queries(self):
+    # prepare queries for later select, update and insert queries
     self.sql_sel = u'SELECT wid FROM %s WHERE ' % self.freq_table
     self.sql_up = u'UPDATE %s SET freq=freq + 1 WHERE wid = ?' % self.freq_table
     self.sql_in = u'INSERT INTO %s VALUES (NULL, 1' % self.freq_table
@@ -80,9 +86,10 @@ class Database():
     self.sql_in = self.sql_in + u')'
 
   def insert_word(self, fieldvalues, sentence):
+    # insert word if new word, otherwise update frequency
     self.c.execute(self.sql_sel, fieldvalues)
     row = self.c.fetchone()
-    if row == None: # key does not exist, insert
+    if row == None: # word does not exist, insert
       self.c.execute(self.sql_in, fieldvalues)
       return self.c.lastrowid
     else: # update
@@ -106,54 +113,71 @@ class Database():
     self.conn.commit()
 
   """
-  Selects frequences from the database. Each parameter can be
-  - a specific value: Filters results to this value
-  - be set to *     : No filtering
-  Note that word can not be set to group.
+  Selects frequences from the database. The parameters can be
+  set to a specific value or to string defined by config.ALL,
+  in which case that parameter is ignored.
+  The result is the total number of frequencies and unique number of words.
   """
-  def select(self, word, pos):
-    fieldvalues = [word] + pos
-    (sql, sql_sum, vals) = self.select_query(fieldvalues)
+  def select_frequencies(self, word, pos):
+    # create query
+    sql_sum = u'SELECT sum(freq), count(freq)'
+    sql = u'SELECT wid, freq'
+    # add displayed fields
+    for i in range(self.fields):
+      sql = sql + u', ' + self.fieldnames[i]
+    # add FROM and WHERE part
+    sql_f = u'\nFROM %s ' % self.freq_table
+    (sql_w, vals) = self.where_query(word, pos)
+    sql = sql + sql_f + sql_w
+    sql_sum = sql_sum + sql_f + sql_w
+    # add ordering
+    sql = sql + u'\nORDER BY freq DESC'
+    # get sum from sum query, then execute word query
     self.c.execute(sql_sum, vals)
     result = self.c.fetchone()
     self.c.execute(sql, vals)
     return result # (fsum, rows)
   
+  """
+  Selects sentences which contain the word with word id wid.
+  """
   def select_sentences(self, wid):
     sql = u'SELECT DISTINCT sentence FROM %s NATURAL JOIN %s NATURAL JOIN %s\
-            WHERE wid = ?\
-            ORDER BY len ASC'\
+            WHERE wid = ?'\
         % (self.freq_table, self.link_table, self.sentence_table)
+          # ORDER BY len ASC'\
     self.c2.execute(sql, (wid,))
 
+  """ Returns amount rows from the sentence selection """
+  def select_frequency_results(self, amount):
+    return self.c.fetchmany(amount)
+
+  """ Returns amount rows from the sentence selection """
   def select_sentences_results(self, amount):
     return self.c2.fetchmany(amount)
-
-  def select_results(self, amount):
-    return self.c.fetchmany(amount)
   
-  def select_options_query(self, fieldvalues, i):
-    assert i >= 0 and i < self.fields
-    sql = u'SELECT DISTINCT ' + self.fieldnames[i]
-    sql = sql + u'\nFROM %s ' % self.freq_table
-    (sql_w, vals) = self.where_query(fieldvalues, i)
-    sql = sql + sql_w
-    sql = sql + u'\nORDER BY ' + self.fieldnames[i] + u' ASC'
-    return (sql, vals)
-
+  """ Selects and returns possible pos options given by the
+  current configuration of word and pos values, starting from index"""
   def select_options(self, word, pos, index):
-    fieldvalues = [word] + pos
-    options = []
-    (sql, vals) = self.select_options_query(fieldvalues, index + 1)
+    # create the query
+    sql = u'SELECT DISTINCT ' + self.fieldnames[index + 1]
+    sql = sql + u'\nFROM %s ' % self.freq_table
+    (sql_w, vals) = self.where_query(word, pos, index + 1)
+    sql = sql + sql_w
+    sql = sql + u'\nORDER BY ' + self.fieldnames[index + 1] + u' ASC'
     self.c3.execute(sql, vals)
     result = self.c3.fetchall()
+    # accumulate non-generic options
+    options = []
     for r in result:
       if r[0] != ALL:
         options.append(r[0])
     return options
 
-  """ create the WHERE part of the query """
-  def where_query(self, fieldvalues, exclude=-1):
+  """ utility to create the WHERE part of a query with the given
+  field values, optionally excluding one """
+  def where_query(self, word, pos, exclude=-1):
+    fieldvalues = [word] + pos
     vals = []
     sql = '\nWHERE '
     for i in range(self.fields):
@@ -164,25 +188,11 @@ class Database():
     sql = sql.rstrip(u'AND ')
     sql = sql.rstrip(u'\nWHERE ')
     return (sql, vals)
-
-  """ create the query for frequency selection """
-  def select_query(self, fieldvalues):
-    sql_sum = u'SELECT sum(freq), count(freq)'
-    sql = u'SELECT wid, freq'
-    # add displayed fields
-    for i in range(self.fields):
-      sql = sql + u', ' + self.fieldnames[i]
-    # add FROM and WHERE part
-    sql_f = u'\nFROM %s ' % self.freq_table
-    (sql_w, vals) = self.where_query(fieldvalues)
-    sql = sql + sql_f + sql_w
-    sql_sum = sql_sum + sql_f + sql_w
-    # add ordering
-    sql = sql + u'\nORDER BY freq DESC'
-    return (sql, sql_sum, vals)
   
   def __exit__(self, typ, value, traceback):
     self.c.close()
+    self.c2.close()
+    self.c3.close()
     self.conn.commit()
     self.conn.close()
     logger.out('disconnected from database')
