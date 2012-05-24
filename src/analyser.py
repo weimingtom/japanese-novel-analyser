@@ -55,7 +55,7 @@ def main():
       sys.exit(0)
     if o in ('-f', '--format'):
       formatter = a
-      if formatter not in ('plain', 'aozora'):
+      if formatter not in ('plain', 'aozora', 'html'):
         logger.err('format not supported: %s' % formatter)
         sys.exit(2)
     if o in ('-e', '--encoding'):
@@ -76,14 +76,15 @@ def main():
       recursive = True
   # create formatter and parser
   if(formatter == 'aozora'):
-    formatter = formats.AozoraFormat(basedir)
+    formatter = formats.AozoraFormat()
+  elif(formatter == 'html'):
+    formatter = formats.HTMLFormat()
   else:
     formatter = formats.Format()
   parser = mecab.PyMeCab()
   # access database
   try:
-    dbfile = os.path.join(basedir, config.dbfile)
-    db = database.Database(dbfile, tablename, clear, True)
+    db = database.Database(tablename, clear, True)
     with db:
       # process files
       logger.out('analyzing text files')

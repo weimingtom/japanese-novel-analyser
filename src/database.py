@@ -4,6 +4,7 @@ and performing queries on the data.
 """
 
 import sqlite3
+import os
 
 import config
 from config import ALL
@@ -15,8 +16,8 @@ class Database():
   Open the database in filename and use tablename as a table name prefix.
   Clear tables if clear is True, and (re-)create them if create is True.
   """
-  def __init__(self, filename, tablename, clear=False, create=False):
-    self.filename = filename
+  def __init__(self, tablename, clear=False, create=False):
+    self.filename = os.path.join(config.get_basedir(), config.dbfile)
     self.freq_table = tablename + '_freqs'
     self.sentence_table = tablename + '_sentences'
     self.link_table = tablename + '_links'
@@ -68,7 +69,7 @@ class Database():
     # create indices for faster lookup
     sql = 'CREATE INDEX IF NOT EXISTS freq_index ON %s (freq DESC)' % self.freq_table
     self.c.execute(sql)
-    sql = 'CREATE INDEX IF NOT EXISTS len_index ON %s (sentences ASC)' % self.sentence_table
+    sql = 'CREATE INDEX IF NOT EXISTS len_index ON %s (len ASC)' % self.sentence_table
     self.c.execute(sql)
     jql = 'CREATE INDEX IF NOT EXISTS link_wid_index ON %s (wid ASC)' % self.link_table
     self.c.execute(sql)
@@ -85,7 +86,7 @@ class Database():
     self.sql_sel = self.sql_sel.rstrip(u' AND')
     self.sql_in = self.sql_in + u')'
 
-  def insert_word(self, fieldvalues, sentence):
+  def insert_word(self, fieldvalues):
     # insert word if new word, otherwise update frequency
     self.c.execute(self.sql_sel, fieldvalues)
     row = self.c.fetchone()
@@ -188,6 +189,7 @@ class Database():
     sql = sql.rstrip(u'AND ')
     sql = sql.rstrip(u'\nWHERE ')
     return (sql, vals)
+  
   
   def __exit__(self, typ, value, traceback):
     self.c.close()

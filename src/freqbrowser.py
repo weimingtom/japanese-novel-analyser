@@ -26,8 +26,6 @@ import gui
 from logger import logger
 
 def main():
-  # get path of main program directory
-  basedir = config.get_basedir()
   # parse command line options
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'hn:t:', ['help','number=','tablename='])
@@ -58,8 +56,7 @@ def main():
         sys.exit(2)
   # create formatter and parser
   try:
-    dbfile = os.path.join(basedir, config.dbfile)
-    db = database.Database(dbfile, tablename)
+    db = database.Database(tablename)
     with db:
       display_gui(db, list_number)
   except sqlite3.Error as e:

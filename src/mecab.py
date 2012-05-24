@@ -34,9 +34,8 @@ class PyMeCab():
             root = fields[6] 
           else:
             root = word
-          fieldvalues = [root] + pos
           sentence = sentence + word
-          data.append(fieldvalues)
+          data.append([root] + pos)
           if pos[0] == u'記号' and pos[1] == u'句点' \
             or pos[0] == u'記号' and word == u'！' \
             or pos[0] == u'記号' and word == u'？':
@@ -51,9 +50,10 @@ class PyMeCab():
 
   def insert(self, data, sentence, db):
     if sentence != '':
-      sid = db.insert_sentence(sentence)
+      pass
+      #sid = db.insert_sentence(sentence)
     for fieldvalues in data:
-      wid = db.insert_word(fieldvalues, sentence) 
-      assert wid > 0 and sid > 0
-      db.insert_link(wid, sid)
+      wid = db.insert_word(fieldvalues)
+      #assert wid > 0 and sid > 0
+      #db.insert_link(wid, sid)
 
