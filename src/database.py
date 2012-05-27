@@ -14,15 +14,13 @@ class Database():
 
   """
   Open the database in filename and use tablename as a table name prefix.
-  Clear tables if clear is True, and (re-)create them if create is True.
+  Drop tables if drop is True, and (re-)create them if create is True.
   """
-  def __init__(self, tablename, clear=False, create=False):
+  def __init__(self, tablename):
     self.filename = os.path.join(config.get_basedir(), config.dbfile)
     self.freq_table = tablename + '_freqs'
     self.sentence_table = tablename + '_sentences'
     self.link_table = tablename + '_links'
-    self.clear = clear
-    self.create = create
     # data fields are the word and the parts of speech
     self.fields = config.mecab_fields + 1
     self.fieldnames = [u'word']
@@ -35,12 +33,6 @@ class Database():
     self.c = self.conn.cursor() # Cursor for word frequency queries
     self.c2 = self.conn.cursor() # Cursor for sentence queries
     self.c3 = self.conn.cursor() # Cursor for option selections
-    if self.clear:
-      self.clear_table()
-      logger.out('cleared database tables')
-    if self.create:
-      self.create_table()
-      logger.out('created database tables')
     self.prepare_queries()
 
   def create_table(self):
@@ -74,6 +66,7 @@ class Database():
     jql = 'CREATE INDEX IF NOT EXISTS link_wid_index ON %s (wid ASC)' % self.link_table
     self.c.execute(sql)
     self.conn.commit()
+    logger.out('created database tables')
 
   def prepare_queries(self):
     # prepare queries for later select, update and insert queries
@@ -107,11 +100,19 @@ class Database():
     sql = u'INSERT INTO %s VALUES (?, ?)' % self.link_table
     self.c.execute(sql, (word_id, sentence_id))
 
-  def clear_table(self):
+  def drop_table(self):
     self.c.execute(u'DROP TABLE IF EXISTS %s' % self.freq_table)
     self.c.execute(u'DROP TABLE IF EXISTS %s' % self.sentence_table)
     self.c.execute(u'DROP TABLE IF EXISTS %s' % self.link_table)
     self.conn.commit()
+    logger.out('dropped database tables')
+
+  def clear_table(self):
+    self.c.execute(u'DELETE FROM %s' % self.freq_table)
+    self.c.execute(u'DELETE FROM %s' % self.sentence_table)
+    self.c.execute(u'DELETE FROM %s' % self.link_table)
+    self.conn.commit()
+    logger.out('cleared database tables')
 
   """
   Selects frequences from the database. The parameters can be
@@ -189,7 +190,6 @@ class Database():
     sql = sql.rstrip(u'AND ')
     sql = sql.rstrip(u'\nWHERE ')
     return (sql, vals)
-  
   
   def __exit__(self, typ, value, traceback):
     self.c.close()

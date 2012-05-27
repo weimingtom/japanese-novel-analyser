@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-This is the Frequency Browser
+This is the Frequency Browser.
 It uses the database created by the Japanese Novel Analyser and
 allows displaying the frequencies by selecting certain parts of speech
 or conjugations. For these it has grouping and filter options.
@@ -54,17 +54,14 @@ def main():
       if not re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', tablename):
         logger.err('invalid table name: %s' % tablename)
         sys.exit(2)
-  # create formatter and parser
+  # open gui with database
   try:
     db = database.Database(tablename)
     with db:
-      display_gui(db, list_number)
+      ui = gui.FreqGUI(db, list_number)
+      ui.show()
   except sqlite3.Error as e:
     logger.err('database error: %s' % e)
-
-def display_gui(db, listsize):
-  ui = gui.FreqGUI(db, listsize)
-  ui.show()
 
 if __name__ == '__main__':
   main()

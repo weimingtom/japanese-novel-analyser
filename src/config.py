@@ -9,7 +9,7 @@ import os.path
 ALL = u'*'
 
 # default format for input files
-formatter = 'aozora'
+formatter = 'plain'
 # encoding of input files
 encoding  = 'utf-8'
 # database file

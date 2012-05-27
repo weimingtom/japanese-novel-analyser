@@ -102,21 +102,3 @@ class AozoraFormat(Format):
     line = line.strip()
     return line
 
-
-"""
-This formatter takes html files with ruby text.
-Furigana and html markup are removed and gaiji constructs are 
-replaced with UTF-8 equivalents.
-"""
-class HTMLFormat(Format):
-  def __init__(self):
-    super(HTMLFormat, self).__init__()
-
-  def trim(self, line):
-    Format.trim(self, line)
-    # replace gaiji
-    line = re.sub(ur'※\([^)]*?(?P<JisPlane>\d)\-(?P<JisRow>\d{1,2})\-(?P<JisCol>\d{1,2})\)', self.replace_gaiji, line)
-    # remove HTML
-    line = re.sub(ur'<.*?>', u'', line);
-    # remove ／＼ and ／″＼ ?
-    return line

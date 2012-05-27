@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 """
-gui.py: This is the graphical user interface.
+gui.py: This is the graphical user interface. It displays the frequency
+lists, allows selection by part-of-speech (pos) and sub-pos. Clicking
+on a word opens a window displaying sentences containing that word.
 """
 
 import gtk
@@ -9,8 +11,10 @@ import gobject
 
 import config
 
+""" GTK View for having a list with scroll bars that can dynamically
+load new entries. Has signals for clicking on an entry and clicking
+the row to extend the view."""
 class ExtendedView(gtk.ScrolledWindow):
-
   __gsignals__ = {
           'row-selected' : (gobject.SIGNAL_RUN_LAST, gobject.TYPE_NONE,
            (int,)),
@@ -20,9 +24,10 @@ class ExtendedView(gtk.ScrolledWindow):
 
   def __init__(self, *types):
     gtk.ScrolledWindow.__init__(self)
+    # internal list store
     self.store = gtk.ListStore(*types)
     self.store_end_iter = None
-    # create scrollable list view
+    # scrollable list view
     self.set_shadow_type(gtk.SHADOW_ETCHED_IN)
     self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
     self.view = gtk.TreeView(self.store)
@@ -30,6 +35,7 @@ class ExtendedView(gtk.ScrolledWindow):
     self.view.connect('row-activated', self.row_activated)
     self.add(self.view)
 
+  """ add a column displaying the text at text_index """
   def add_column(self, title, text_index):
     rt = gtk.CellRendererText()
     column = gtk.TreeViewColumn(title, rt, text=text_index)
@@ -43,6 +49,7 @@ class ExtendedView(gtk.ScrolledWindow):
   def set_column_title(self, index, title):
     self.view.get_column(index).set_title(title)
 
+  """ append item. it will extend the list if extender is true. """
   def append(self, row, extender=False):
     it = self.store.append(row)
     if extender:

@@ -20,6 +20,7 @@ class PyMeCab():
 
   def parse(self, line, db):
     node = self.tagger.parseToNode(line.encode('utf-8'))
+    # accumulate words until end of stream or sentence
     while node:
       if node.stat == MeCab.MECAB_BOS_NODE:
         sentence = u''
@@ -30,7 +31,7 @@ class PyMeCab():
           fields = node.feature.decode('utf-8').split(',')
           # get part-of-speech features 
           pos = fields[0:self.fields]
-          if fields[6] != u'*': # take root
+          if fields[6] != u'*': # if root form is available, use it
             root = fields[6] 
           else:
             root = word
@@ -50,10 +51,9 @@ class PyMeCab():
 
   def insert(self, data, sentence, db):
     if sentence != '':
-      pass
-      #sid = db.insert_sentence(sentence)
+      sid = db.insert_sentence(sentence)
     for fieldvalues in data:
       wid = db.insert_word(fieldvalues)
-      #assert wid > 0 and sid > 0
-      #db.insert_link(wid, sid)
+      assert wid > 0 and sid > 0
+      db.insert_link(wid, sid)
 
