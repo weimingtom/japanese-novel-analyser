@@ -18,6 +18,7 @@ Options:
   -f, --format=FORMAT Set the format of the files;
                       FORMAT is  'plain', 'aozora' or 'html`
   -d, --droptable     Drop table before creating and filling it
+  -s, --sentences     Also collect reference sentences
 """
 
 import sys
@@ -38,7 +39,7 @@ def main():
   basedir = config.get_basedir()
   # parse command line options
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:rdt:', ['help','format=','encoding=', 'droptable', 'recursive', 'tablename='])
+    opts, args = getopt.getopt(sys.argv[1:], 'hf:e:o:rdt:s', ['help','format=','encoding=', 'droptable', 'recursive', 'tablename=', 'sentences'])
   except getopt.error as opterr:
     logger.err(opterr)
     logger.err('for help use --help')
@@ -49,6 +50,7 @@ def main():
   tablename = config.tablename
   drop = False
   recursive = False
+  sentences = False
   for o, a in opts:
     if o in ('-h', '--help'):
       logger.out(__doc__)
@@ -67,6 +69,8 @@ def main():
         sys.exit(2)
     if o in ('-d', '--droptable'):
       drop = True
+    if o in ('-s', '--sentences'):
+      sentences = True
     if o in ('-t', '--tablename'):
       tablename = a
       if not re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', tablename):
@@ -81,7 +85,7 @@ def main():
     formatter = formats.HTMLFormat()
   else:
     formatter = formats.Format()
-  parser = mecab.PyMeCab()
+  parser = mecab.PyMeCab(sentences)
   # access database
   try:
     db = database.Database(tablename)

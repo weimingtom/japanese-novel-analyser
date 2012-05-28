@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 mecab.py: This file invokes the Mecab morphological analyser on the
-cleaned input files and parses its output for further processing.
+cleaned input files and parses its output, storing word information
+like pos and root and associating them with the sentences.
+Then it inserts these into the given database.
 """
 
 import sys
@@ -12,7 +14,8 @@ import config
 from logger import logger
 
 class PyMeCab():
-  def __init__(self):
+  def __init__(self, sentences):
+    self.sentences = sentences
     self.tagger = MeCab.Tagger('')
     self.fields = config.mecab_fields
     # mecab has somtimes an error on the first parse, so test this before
@@ -50,10 +53,11 @@ class PyMeCab():
       node = node.next
 
   def insert(self, data, sentence, db):
-    if sentence != '':
+    if self.sentences and sentence != '':
       sid = db.insert_sentence(sentence)
     for fieldvalues in data:
       wid = db.insert_word(fieldvalues)
-      assert wid > 0 and sid > 0
-      db.insert_link(wid, sid)
+      if self.sentences:
+        assert wid > 0 and sid > 0
+        db.insert_link(wid, sid)
 
