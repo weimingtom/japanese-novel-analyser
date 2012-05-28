@@ -7,8 +7,8 @@ It uses the database created by the Japanese Novel Analyser and
 allows displaying the frequencies by selecting certain parts of speech
 or conjugations. For these it has grouping and filter options.
 
-Usage: freqbrowser.py [OPTION]... FILTER...
-Display the frequencies with the given FILTERs
+Usage: freqbrowser.py [OPTION]...
+Display the frequencies with the given OPTIONs
 
 -n, --number=N   Display the top N frequencies in list
 -t, --tablename  Table to use
